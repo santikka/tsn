@@ -78,14 +78,14 @@ complexity <- function(data, measures = "complexity", window = 7L,
     if (measure == "complexity") {
       fluctuation <- out$fluctuation %||% roll(
         fun = fluctuation_degree,
-        data = values,
+        values = values,
         window = window,
         align = align,
         scale = scale
       )
       distribution <- out$distribution %||% roll(
         fun = distribution_degree,
-        data = values,
+        values = values,
         window = window,
         align = align,
         scale = scale
@@ -94,7 +94,7 @@ complexity <- function(data, measures = "complexity", window = 7L,
     } else {
       out[[measure]] <- roll(
         fun = complexity_funs[[measure]],
-        data = values,
+        values = values,
         window = window,
         align = align,
         scale = scale

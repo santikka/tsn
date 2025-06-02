@@ -4,8 +4,8 @@
 #' as ascending, descending, flat, or turbulent.
 #'
 #' @export
-#' @param data \[`ts`, `data.frame`, `numeric()`]\cr Time-series data.
-#' @param window_size \[`integer(1)`]\cr The window size for metric calculation.
+#' @param data \[`tsn`, `ts`, `data.frame`, `numeric()`]\cr Time-series data.
+#' @param window \[`integer(1)`]\cr The window size for metric calculation.
 #'   If missing, uses the following adaptive sizing:
 #'   `max(3, min(length(data), round(length(data)/10)))`.
 #' @param method \[`character(1)`]\cr The method for trend calculation.
@@ -55,33 +55,29 @@
 #'   turbulence_threshold = 5, flat_to_turbulent_factor = 2
 #' )
 #'
-trend.default <- function(data, window, method = "slope", slope = "robust",
-                          epsilon = 0.05, turbulence_threshold = 5,
-                          flat_to_turbulent_factor = 1.5, align = "center") {
-  data <- get_ts(as.tsn(data))
+trend <- function(data, window, method = "slope", slope = "robust",
+                  epsilon = 0.05, turbulence_threshold = 5,
+                  flat_to_turbulent_factor = 1.5, align = "center") {
+  data <- as.tsn(data)
+  values <- get_ts(data)
+  time <- get_time(data)
   method <- check_match(method, c("slope", "growth_factor"))
   slope <- check_match(slope, c("ols", "robust", "spearman", "kendall"))
   align <- check_match(align, c("center", "right", "left"))
   check_values(epsilon, type = "numeric")
   check_values(turbulence_threshold, type = "numeric")
   check_values(flat_to_turbulent_factor, type = "numeric")
-  n <- length(data)
+  n <- length(values)
   window <- ifelse_(missing(window), max(3, min(n, round(n / 10))), window)
   stopifnot_(
     window > 2 && window < n,
     "Argument {.arg window} must be between 2 and {n}
     (the number of observations)."
   )
-
-  time_idx <- ifelse_(stats::is.ts(data), stats::time(data), seq_along(data))
-  # TODO try
-  data <- as.numeric(data)
-
-  # TODO test
   window_method <- ifelse_(method == "slope", slope, method)
   metric_values <- roll(
     fun = metric_funs[[window_method]],
-    data = data,
+    values = values,
     time = time,
     window = window,
     align = align
@@ -100,12 +96,12 @@ trend.default <- function(data, window, method = "slope", slope = "robust",
   # }
 
   trend_codes <- rep("Initial", n)
-  data_na <- is.na(data)
-  trend_codes[data_na] <- "Missing_Data"
+  values_na <- is.na(values)
+  trend_codes[values_na] <- "Missing_Data"
   neutral_val <- ifelse_(method == "growth_factor", 1, 0)
   lower <- neutral_val - epsilon
   upper <- neutral_val + epsilon
-  valid <- !is.na(metric_values) & !data_na
+  valid <- !is.na(metric_values) & !values_na
   valid_metrics <- metric_values[valid]
   trend_codes[valid] <- ifelse(
     valid_metrics > upper,
@@ -145,33 +141,19 @@ trend.default <- function(data, window, method = "slope", slope = "robust",
       }
     }
   }
-
-  structure(
-    list(
-      timeseries = data.frame(
-        id = 1L,
-        time = time_idx,
-        value = data,
-        state = factor(
-          trend_codes,
-          levels = c(
-            "Ascending",
-            "Descending",
-            "Flat",
-            "Turbulent",
-            "Missing_Data",
-            "Initial"
-          )
-        )
-      ),
-      network = NULL
-    ),
-    id_col = "id",
-    value_col = "value",
-    state_col = "state",
-    time_col = "time",
-    class = "tsn"
+  data$timeseries$state <- factor(
+    trend_codes,
+    levels = c(
+      "Ascending",
+      "Descending",
+      "Flat",
+      "Turbulent",
+      "Missing_Data",
+      "Initial"
+    )
   )
+  attr(data, "state_col") <- "state"
+  data
 }
 
 

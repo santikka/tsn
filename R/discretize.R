@@ -82,7 +82,7 @@ discretize.ts <- function(data, n_states, labels = 1:n_states,
 }
 
 #' @export
-#' @rdname ts_discretize
+#' @rdname discretize
 discretize.default <- function(data, id_col, value_col, order_col, n_states,
                                labels = 1:n_states, method = "kmeans",
                                unused_fn = dplyr::first, ...) {
@@ -118,8 +118,10 @@ discretize.default <- function(data, id_col, value_col, order_col, n_states,
     onlyif(!missing(order_col), order_col)
   )
   check_cols(cols_req, names(data))
-  id_col <- ifelse_(missing(id_col), ".id", id_col)
-  data$.id <- 1L
+  if (missing(id_col)) {
+    id_col <- ".id"
+    data$.id <- 1L
+  }
   complete <- stats::complete.cases(data[, c(id_col, value_col)])
   values <- data[[value_col]][complete]
   # TODO warn if number of states is less than n_states
@@ -175,52 +177,52 @@ discretize.default <- function(data, id_col, value_col, order_col, n_states,
   )
 }
 
-#' #' Calculate comprehensive statistics for states
-#' #'
-#' #' @inheritParams prepare_ts
-#' #' @param state_col A `character` string naming the column that contains the
-#' #' state information.
-#' #' @return A `list` of global and local statistics.
-#' #' @noRd
-#' compute_state_statistics <- function(data, id_col, value_col, state_col) {
-#'   # For R CMD Check
-#'   group_size_ <- NULL
-#'   global <- data |>
-#'     dplyr::group_by(!!rlang::sym(state_col)) |>
-#'     dplyr::summarize(
-#'       freq = dplyr::n(),
-#'       prop = dplyr::n() / nrow(data),
-#'       mean = mean(!!rlang::sym(value_col)),
-#'       median = stats::median(!!rlang::sym(value_col)),
-#'       sd = stats::sd(!!rlang::sym(value_col)),
-#'       min = min(!!rlang::sym(value_col)),
-#'       max = max(!!rlang::sym(value_col)),
-#'       q25 = unname(stats::quantile(!!rlang::sym(value_col), 0.25)),
-#'       q75 = unname(stats::quantile(!!rlang::sym(value_col), 0.75)),
-#'     )
-#'   if (id_col == ".id") {
-#'     local <- global
-#'   } else {
-#'     local <- data |>
-#'       dplyr::group_by(!!rlang::sym(id_col)) |>
-#'       dplyr::mutate(
-#'         group_size_ = dplyr::n()
-#'       ) |>
-#'       dplyr::group_by(!!rlang::sym(id_col), !!rlang::sym(state_col)) |>
-#'       dplyr::summarize(
-#'         freq = dplyr::n(),
-#'         prop = dplyr::n() / dplyr::first(group_size_),
-#'         mean = mean(!!rlang::sym(value_col)),
-#'         median = stats::median(!!rlang::sym(value_col)),
-#'         sd = stats::sd(!!rlang::sym(value_col)),
-#'         min = min(!!rlang::sym(value_col)),
-#'         max = max(!!rlang::sym(value_col)),
-#'         q25 = unname(stats::quantile(!!rlang::sym(value_col), 0.25)),
-#'         q75 = unname(stats::quantile(!!rlang::sym(value_col), 0.75)),
-#'       )
-#'   }
-#'   list(global = global, local = local)
-#' }
+# #' Calculate comprehensive statistics for states
+# #'
+# #' @inheritParams prepare_ts
+# #' @param state_col A `character` string naming the column that contains the
+# #' state information.
+# #' @return A `list` of global and local statistics.
+# #' @noRd
+# compute_state_statistics <- function(data, id_col, value_col, state_col) {
+#   # For R CMD Check
+#   group_size_ <- NULL
+#   global <- data |>
+#     dplyr::group_by(!!rlang::sym(state_col)) |>
+#     dplyr::summarize(
+#       freq = dplyr::n(),
+#       prop = dplyr::n() / nrow(data),
+#       mean = mean(!!rlang::sym(value_col)),
+#       median = stats::median(!!rlang::sym(value_col)),
+#       sd = stats::sd(!!rlang::sym(value_col)),
+#       min = min(!!rlang::sym(value_col)),
+#       max = max(!!rlang::sym(value_col)),
+#       q25 = unname(stats::quantile(!!rlang::sym(value_col), 0.25)),
+#       q75 = unname(stats::quantile(!!rlang::sym(value_col), 0.75)),
+#     )
+#   if (id_col == ".id") {
+#     local <- global
+#   } else {
+#     local <- data |>
+#       dplyr::group_by(!!rlang::sym(id_col)) |>
+#       dplyr::mutate(
+#         group_size_ = dplyr::n()
+#       ) |>
+#       dplyr::group_by(!!rlang::sym(id_col), !!rlang::sym(state_col)) |>
+#       dplyr::summarize(
+#         freq = dplyr::n(),
+#         prop = dplyr::n() / dplyr::first(group_size_),
+#         mean = mean(!!rlang::sym(value_col)),
+#         median = stats::median(!!rlang::sym(value_col)),
+#         sd = stats::sd(!!rlang::sym(value_col)),
+#         min = min(!!rlang::sym(value_col)),
+#         max = max(!!rlang::sym(value_col)),
+#         q25 = unname(stats::quantile(!!rlang::sym(value_col), 0.25)),
+#         q75 = unname(stats::quantile(!!rlang::sym(value_col), 0.75)),
+#       )
+#   }
+#   list(global = global, local = local)
+# }
 
 # Discretization function wrappers --------------------------------------------
 

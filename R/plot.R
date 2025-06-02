@@ -1,7 +1,8 @@
 #' Plot Time-Series Data with State Frequencies
 #'
 #' @export
-#' @param x \[`tsn`]\cr Time-series data to be plotted.
+#' @param data \[`tsn`, `ts`, `data.frame`, `numeric()`]\cr
+#'   Time-series data to be plotted.
 #' @param selected \[`character()`]\cr A vector of indices or names of
 #'   individual time-series to plot. If not provided (default), all
 #'   time-series are plotted up to `max_series` number of plots.
@@ -19,7 +20,6 @@
 #'   The default is `FALSE` for no trend line.
 #' @param scales \[`character(1)`]\cr Any of `"fixed"`, `"free_x"`, `"free_y"`,
 #'   or `"free"` (default).
-#' @param ... Ignored.
 #' @return A `ggplot` object.
 #' @examples
 #' ts_data <- data.frame(
@@ -33,32 +33,22 @@
 #'   )
 #' )
 #'
-#' ts_data_disc <- ts_discretize(ts_data, "id", "series", "time", n_states = 5)
+#' ts_data_disc <- discretize(ts_data, "id", "series", "time", n_states = 5)
 #' plot_series(ts_data_disc)
 #'
-plot_series <- function(x, ...) {
-  UseMethod("plot_series")
-}
-
-plot_series.default <- function(x, ...) {
-  plot_series(as.tsn(x), ...)
-}
-
-#' @export
-#' @rdname plot_series
-plot_series.tsn <- function(x, selected, overlay = "v", points = FALSE,
-                            ncol = NULL, max_series = 10, trend = FALSE,
-                            scales = c("free", "free_x", "free_y", "fixed"),
-                            ...) {
+plot_series <- function(data, selected, overlay = "v", points = FALSE,
+                        ncol = NULL, max_series = 10, trend = FALSE,
+                        scales = c("free", "free_x", "free_y", "fixed")) {
+  data <- as.tsn(data)
   if (!is.null(overlay)) {
     overlay <- check_match(overlay, c("h", "v"))
   }
   check_flag(points)
-  id_col <- attr(x, "id_col")
-  value_col <- attr(x, "value_col")
-  state_col <- attr(x, "state_col")
-  time_col <- attr(x, "time_col")
-  df <- x$timeseries
+  id_col <- attr(data, "id_col")
+  value_col <- attr(data, "value_col")
+  state_col <- attr(data, "state_col")
+  time_col <- attr(data, "time_col")
+  df <- data$timeseries
   ids <- unique(df[[id_col]])
   selected <- ifelse_(
     missing(selected),

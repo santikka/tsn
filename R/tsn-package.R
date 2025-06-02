@@ -20,5 +20,5 @@
 #'
 #' TODO describe
 #' @source <https://pmc.ncbi.nlm.nih.gov/articles/PMC8121346/>
-#' @format A `data.frame` object
+#' @format A `data.frame` object.
 "steps"

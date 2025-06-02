@@ -1,13 +1,13 @@
 #' Apply rolling functions
 #'
 #' @param fun The function to apply.
-#' @param data The data values
+#' @param values The data values
 #' @param time The time values
 #' @param width Window width.
 #' @param ... Arguments passed to `fun`.
 #' @noRd
-roll <- function(fun, data, time, window, align, ...) {
-  n <- length(data)
+roll <- function(fun, values, time, window, align, ...) {
+  n <- length(values)
   out <- rep(NA, n)
   left <- (window - 1L) %/% 2
   right <- window - 1L - left
@@ -27,8 +27,8 @@ roll <- function(fun, data, time, window, align, ...) {
   for (i in seq(start, end)) {
     tmp <- ifelse_(
       missing(time),
-      try_(fun(data[w], ...)),
-      try_(fun(data = data[w], time = time[w], ...))
+      try_(fun(values[w], ...)),
+      try_(fun(values = values[w], time = time[w], ...))
     )
     if (!inherits(tmp, "try-error") && is.finite(tmp)) {
       out[i] <- tmp

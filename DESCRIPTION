@@ -4,7 +4,7 @@ Version: 0.1.0
 Authors@R: c(
     person("Mohammed", "Saqr", role = "aut"),
     person("Santtu", "Tikka", 
-           email = "santtuth@gmail.com, role = c("aut", "cre")),
+           email = "santtuth@gmail.com", role = c("aut", "cre")),
     person("Sonsoles", "L\u00f3pez-Pernas",  role = "aut")
   )
 Description: Provides functions for time-series network analysis including 
