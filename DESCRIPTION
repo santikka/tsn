@@ -1,0 +1,34 @@
+Package: tsn
+Title: Time-Series Network Analysis
+Version: 0.1.0
+Authors@R: c(
+    person("Mohammed", "Saqr", role = "aut"),
+    person("Santtu", "Tikka", 
+           email = "santtuth@gmail.com, role = c("aut", "cre")),
+    person("Sonsoles", "L\u00f3pez-Pernas",  role = "aut")
+  )
+Description: Provides functions for time-series network analysis including 
+    distance calculation, network construction, and visualization. Provides 
+    multiple network construction methods.
+License: MIT + file LICENSE
+URL: https://github.com/santikka/tsn/
+BugReports: https://github.com/santikka/tsn/issues/
+Depends:
+    R (>= 4.1.0)
+Imports:
+    checkmate,
+    cli,
+    dplyr,
+    rlang,
+    stats,
+    tibble,
+    tidyr,
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+LazyData: true
