@@ -8,7 +8,7 @@ calculation, network construction, and visualization.
 
 ## Installation
 
-You can install the development version of tsn from
+You can install the development version of `tsn` from
 [GitHub](https://github.com/) with:
 
 ``` r

@@ -5,6 +5,10 @@ as.tsn <- function(x) {
 
 #' @export
 as.tsn.data.frame <- function(x) {
+  stopifnot_(
+    ncol(x) == 1L,
+    "Time-series in data frame format must have a single column."
+  )
   as_tsn(as.numeric(x[[1L]]), seq_len(nrow(x)))
 }
 

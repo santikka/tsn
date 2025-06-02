@@ -16,6 +16,9 @@ plot_series(
 )
 }
 \arguments{
+\item{data}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr
+Time-series data to be plotted.}
+
 \item{selected}{[\code{character()}]\cr A vector of indices or names of
 individual time-series to plot. If not provided (default), all
 time-series are plotted up to \code{max_series} number of plots.}
@@ -39,9 +42,6 @@ The default is \code{FALSE} for no trend line.}
 
 \item{scales}{[\code{character(1)}]\cr Any of \code{"fixed"}, \code{"free_x"}, \code{"free_y"},
 or \code{"free"} (default).}
-
-\item{x}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr
-Time-series data to be plotted.}
 }
 \value{
 A \code{ggplot} object.

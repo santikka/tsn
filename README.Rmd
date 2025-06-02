@@ -20,7 +20,7 @@ An R package for time series network analysis with a focus on distance calculati
 
 ## Installation
 
-You can install the development version of tsn from [GitHub](https://github.com/) with:
+You can install the development version of `tsn` from [GitHub](https://github.com/) with:
 
 ``` r
 # install.packages("devtools")

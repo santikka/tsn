@@ -7,7 +7,7 @@
 complexity(data, measures = "complexity", window = 7L, align = "center")
 }
 \arguments{
-\item{data}{[\code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
+\item{data}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
 
 \item{measures}{[\code{character()}]\cr A vector of measures to calculate. The
 available options are: \code{"complexity"}, \code{"fluctuation"}, \code{"distribution"},
@@ -24,7 +24,8 @@ measure is assigned to the center, rightmost, or leftmost point of the
 window, respectively.}
 }
 \value{
-A \code{data.frame} with the time index and the calculated measures.
+A \code{data.frame} with the time index, the original time-series data,
+and the calculated measures.
 }
 \description{
 Computes dynamic complexity and other rolling window measures for univariate

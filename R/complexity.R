@@ -5,7 +5,7 @@
 #' fluctuation, distribution, autocorrelation, and basic statistics.
 #'
 #' @export
-#' @param data \[`ts`, `data.frame`, `numeric()`]\cr Time-series data.
+#' @param data \[`tsn`, `ts`, `data.frame`, `numeric()`]\cr Time-series data.
 #' @param measures \[`character()`]\cr A vector of measures to calculate. The
 #'   available options are: `"complexity"`, `"fluctuation"`, `"distribution"`,
 #'   `"autocorrelation"`, `"max"`, `"min"`, `"variance"`, `"all"`.
@@ -17,7 +17,8 @@
 #'   options are: `"center"` (default), `"right"`, and `"left"`. The calculated
 #'   measure is assigned to the center, rightmost, or leftmost point of the
 #'   window, respectively.
-#' @return A `data.frame` with the time index and the calculated measures.
+#' @return A `data.frame` with the time index, the original time-series data,
+#'   and the calculated measures.
 #' @details
 #' The following measures can be calculated:
 
@@ -45,7 +46,7 @@ complexity <- function(data, measures = "complexity", window = 7L,
   check_missing(data)
   data <- as.tsn(data)
   value_col <- attr(data, "value_col")
-  # TODO check window, scale
+  # TODO check window
   valid_measures <- c(names(complexity_funs), "complexity")
   measures <- check_match(
     measures,
