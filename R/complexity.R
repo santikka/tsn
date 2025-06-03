@@ -45,7 +45,6 @@ complexity <- function(data, measures = "complexity", window = 7L,
                        align = "center") {
   check_missing(data)
   data <- as.tsn(data)
-  value_col <- attr(data, "value_col")
   # TODO check window
   valid_measures <- c(names(complexity_funs), "complexity")
   measures <- check_match(
@@ -64,7 +63,7 @@ complexity <- function(data, measures = "complexity", window = 7L,
     measures
   )
   align <- check_match(align, c("left", "right", "center"))
-  values <- get_ts(data)
+  values <- get_values(data)
   n <- length(values)
   stopifnot_(
     n >= window,
@@ -72,9 +71,7 @@ complexity <- function(data, measures = "complexity", window = 7L,
      ({window})."
   )
   scale <- range(values, na.rm = TRUE)
-  out <- data$timeseries
-
-  # Calculate each measure
+  out <- data
   for (measure in measures) {
     if (measure == "complexity") {
       fluctuation <- out$fluctuation %||% roll(

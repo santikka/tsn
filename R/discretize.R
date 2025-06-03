@@ -164,16 +164,13 @@ discretize.default <- function(data, id_col, value_col, order_col, n_states,
   # sequence_data <- wide_data[, time_cols]
   # meta_data <- wide_data[, !time_cols]
   structure(
-    list(
-      timeseries = data,
-      network = NULL
-    ),
+    data,
     id_col = id_col,
     value_col = value_col,
     state_col = state_col,
     time_col = ifelse_(missing(order_col), ".time", order_col),
     output = output,
-    class = "tsn"
+    class = c("tsn", "data.frame")
   )
 }
 

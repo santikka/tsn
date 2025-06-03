@@ -59,7 +59,7 @@ trend <- function(data, window, method = "slope", slope = "robust",
                   epsilon = 0.05, turbulence_threshold = 5,
                   flat_to_turbulent_factor = 1.5, align = "center") {
   data <- as.tsn(data)
-  values <- get_ts(data)
+  values <- get_values(data)
   time <- get_time(data)
   method <- check_match(method, c("slope", "growth_factor"))
   slope <- check_match(slope, c("ols", "robust", "spearman", "kendall"))
@@ -141,7 +141,7 @@ trend <- function(data, window, method = "slope", slope = "robust",
       }
     }
   }
-  data$timeseries$state <- factor(
+  data$.state <- factor(
     trend_codes,
     levels = c(
       "Ascending",
@@ -152,7 +152,7 @@ trend <- function(data, window, method = "slope", slope = "robust",
       "Initial"
     )
   )
-  attr(data, "state_col") <- "state"
+  attr(data, "state_col") <- ".state"
   data
 }
 

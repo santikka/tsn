@@ -13,5 +13,5 @@ You can install the development version of `tsn` from
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("santikka/tsn")
+remotes::install_github("santikka/tsn")
 ```

@@ -5,6 +5,10 @@ as.tsn <- function(x) {
 
 #' @export
 as.tsn.data.frame <- function(x) {
+  cls <- class(x)
+  if ("tsn" %in% cls) {
+    return(x)
+  }
   stopifnot_(
     ncol(x) == 1L,
     "Time-series in data frame format must have a single column."
@@ -35,25 +39,22 @@ as.tsn.default <- function(x) {
 
 as_tsn <- function(x, time) {
   structure(
-    list(
-      timeseries = data.frame(
-        series = 1L,
-        time = time,
-        value = x
-      ),
-      network = NULL
+    data.frame(
+      series = 1L,
+      time = time,
+      value = x
     ),
     id_col = "series",
     value_col = "value",
     time_col = "time",
-    class = "tsn"
+    class = c("tsn", "data.frame")
   )
 }
 
-get_ts <- function(x) {
-  x$timeseries[[attr(x, "value_col")]]
+get_values <- function(x) {
+  x[[attr(x, "value_col")]]
 }
 
 get_time <- function(x) {
-  x$timeseries[[attr(x, "time_col")]]
+  x[[attr(x, "time_col")]]
 }

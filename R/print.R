@@ -1,4 +1,4 @@
 #' @export
 print.tsn <- function(x, ...) {
-  print(x$timeseries)
+  print.data.frame(x, ...)
 }

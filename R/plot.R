@@ -48,16 +48,15 @@ plot_series <- function(data, selected, overlay = "v", points = FALSE,
   value_col <- attr(data, "value_col")
   state_col <- attr(data, "state_col")
   time_col <- attr(data, "time_col")
-  df <- data$timeseries
-  ids <- unique(df[[id_col]])
+  ids <- unique(data[[id_col]])
   selected <- ifelse_(
     missing(selected),
     ids[seq_len(min(length(ids), max_series))],
     selected[seq_len(min(length(selected), max_series))]
   )
-  df <- df[df[[id_col]] %in% selected, ]
+  data <- data[data[[id_col]] %in% selected, ]
   p <- ggplot2::ggplot(
-    df,
+    data,
     ggplot2::aes(x = !!rlang::sym(time_col), y = !!rlang::sym(value_col))
   )
   # Create segments where the state remains constant
@@ -75,7 +74,7 @@ plot_series <- function(data, selected, overlay = "v", points = FALSE,
       ymin <- rlang::sym(".min")
       ymax <- rlang::sym(".max")
     }
-    df_rects <- df |>
+    rects <- data |>
       dplyr::arrange(!!rlang::sym(id_col), !!rlang::sym(segment_col)) |>
       dplyr::group_by(!!rlang::sym(id_col)) |>
       dplyr::mutate(
@@ -107,7 +106,7 @@ plot_series <- function(data, selected, overlay = "v", points = FALSE,
         .groups = "drop"
       )
     p <- p + ggplot2::geom_rect(
-      data = df_rects,
+      data = rects,
       ggplot2::aes(
         xmin = !!xmin,
         xmax = !!xmax,
@@ -147,12 +146,12 @@ plot_series <- function(data, selected, overlay = "v", points = FALSE,
   p +
     ggplot2::scale_fill_brewer(
       palette = ifelse(
-        n_unique(df[[state_col]]) <= 8,
+        n_unique(data[[state_col]]) <= 8,
         "Accent",
         "Set3"
       ),
       limits = levels(
-        factor(base::sort(dplyr::pull(df[, state_col, drop = FALSE], 1L)))
+        factor(base::sort(dplyr::pull(data[, state_col, drop = FALSE], 1L)))
       ),
       name = "State"
     ) +
