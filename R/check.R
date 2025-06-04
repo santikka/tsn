@@ -78,6 +78,31 @@ check_missing <- function(x) {
   )
 }
 
+#' Check that `x` is between a minimum and a maximum value
+#'
+#' @param x An \R object expected to be a single  `numeric` or `integer` value.
+#' @noRd
+check_range <- function(x, type = "numeric", scalar = TRUE,
+                        min = 0.0, max = 1.0) {
+  arg <- deparse(substitute(x))
+  prefix <- ifelse_(scalar, "be a single", "only contain")
+  suffix <- ifelse_(
+    scalar,
+    ifelse_(type == "integer", "", " value"),
+    " values"
+  )
+  test_fun <- ifelse_(
+    type == "numeric",
+    ifelse_(scalar, checkmate::test_number, checkmate::test_numeric),
+    ifelse_(scalar, checkmate::test_int, checkmate::test_integer)
+  )
+  stopifnot_(
+    test_fun(x = x, lower = min, upper = max),
+    "Argument {.arg {arg}} must {prefix}
+    {.cls {type}} {suffix} between {min} and {max}."
+  )
+}
+
 #' Check if argument is a character string
 #'
 #' @param x An \R object.
@@ -124,4 +149,20 @@ check_values <- function(x, type = "integer", strict = FALSE,
     test_fun(x = x, lower = as.integer(strict)),
     "Argument {.arg {arg}} must be a {strictness} {.cls {type}}{suffix}."
   )
+}
+
+check_network_dots <- function(...) {
+  dots <- list(...)
+  if (!is.null(dots$k)) {
+    check_values(k, strict = TRUE)
+  }
+  if (!is.null(dots$percentile)) {
+    check_range(percentile)
+  }
+  if (!is.null(dots$threshold)) {
+    check_values(threshold, type = "numeric")
+  }
+  if (!is.null(dots$sigma)) {
+    check_values(sigma, type = "numeric", strict = TRUE)
+  }
 }

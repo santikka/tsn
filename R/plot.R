@@ -159,3 +159,4 @@ plot_series <- function(data, selected, overlay = "v", points = FALSE,
     ggplot2::labs(x = "Time", y = "") +
     ggplot2::theme(legend.position = "bottom")
 }
+

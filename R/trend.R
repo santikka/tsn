@@ -82,19 +82,6 @@ trend <- function(data, window, method = "slope", slope = "robust",
     window = window,
     align = align
   )
-
-
-  # if (align == "center" && sum(!is.na(metric_values)) > 0L) {
-  #   first_valid <- min(which(!is.na(metric_values)))
-  #   if (first_valid > 1L) {
-  #     metric_values[seq(1L, first_valid - 1L)] <- metric_values[first_valid]
-  #   }
-  #   last_valid <- max(which(!is.na(metric_values)))
-  #   if (last_valid < n) {
-  #     metric_values[seq(last_valid + 1L, n)] <- metric_values[last_valid]
-  #   }
-  # }
-
   trend_codes <- rep("Initial", n)
   values_na <- is.na(values)
   trend_codes[values_na] <- "Missing_Data"
@@ -112,7 +99,6 @@ trend <- function(data, window, method = "slope", slope = "robust",
       "Flat"
     )
   )
-
   volatility_window <- min(max(3, window %/% 2), sum(valid))
   valid_idx <- which(valid)
   n_valid <- length(valid_metrics)
@@ -129,7 +115,6 @@ trend <- function(data, window, method = "slope", slope = "robust",
       volatility_range_factor <- metric_range / metric_am
       combined_vol <- volatility_cv + 0.5 * volatility_range_factor
       j <- valid_idx[i]
-      # Adjust turbulence threshold if current trend is "flat"
       base_trend <- trend_codes[j]
       effective_threshold <- ifelse_(
         base_trend == "Flat",
@@ -160,14 +145,6 @@ trend <- function(data, window, method = "slope", slope = "robust",
 # Metrics -----------------------------------------------------------------
 
 metric_funs <- list()
-
-# metric_funs$ar1 <- function(x, y) {
-#   y <- stats::na.omit(y)
-#   model <- stats::ar.ols(
-#     y, aic = FALSE, order.max = 1, demean = FALSE, intercept = TRUE
-#   )
-#   model$ar[1L]
-# }
 
 metric_funs$growth_factor <- function(values, time) {
   values <- values[!is.na(y)]

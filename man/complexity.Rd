@@ -29,8 +29,8 @@ and the calculated measures.
 }
 \description{
 Computes dynamic complexity and other rolling window measures for univariate
-or multivariate time series data. Supports various measures including complexity,
-fluctuation, distribution, autocorrelation, and basic statistics.
+or multivariate time series data. Supports various measures including
+complexity, fluctuation, distribution, autocorrelation, and basic statistics.
 }
 \details{
 The following measures can be calculated:

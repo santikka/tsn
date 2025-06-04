@@ -1,9 +1,23 @@
+#' Assign a default value to a missing argument
+#'
+#' @param x An \R object.
+#' @param d Default value to use.
+#' @noRd
+default <- function(x, d) {
+  if (missing(x)) {
+    d
+  } else {
+    x
+  }
+}
+
 #' Apply rolling functions
 #'
 #' @param fun The function to apply.
 #' @param values The data values
 #' @param time The time values
-#' @param width Window width.
+#' @param window Window width.
+#' @param align Window alignment.
 #' @param ... Arguments passed to `fun`.
 #' @noRd
 roll <- function(fun, values, time, window, align, ...) {
@@ -16,26 +30,85 @@ roll <- function(fun, values, time, window, align, ...) {
   if (align == "center") {
     start <- 1 + left
     end <- n - right
-    w <- seq(start - left, start + right)
+    w <- (start - left):(start + right)
   } else if (align == "right") {
     start <- window
-    w <- seq(start - window + 1L, start)
+    w <- (start - window + 1L):start
   } else {
     end <- n - window + 1
-    w <- seq(start, start + window - 1L)
+    w <- start:(start + window - 1L)
   }
-  for (i in seq(start, end)) {
-    tmp <- ifelse_(
-      missing(time),
-      try_(fun(values[w], ...)),
-      try_(fun(values = values[w], time = time[w], ...))
-    )
-    if (!inherits(tmp, "try-error") && is.finite(tmp)) {
-      out[i] <- tmp
+  if (missing(time)) {
+    for (i in start:end) {
+      out[i] <- fun(values[w], ...)
+      w <- w + 1L
     }
-    w <- w + 1L
+  } else {
+    for (i in start:end) {
+      out <- fun(values = values[w], time = time[w], ...)
+      w <- w + 1L
+    }
   }
   out
+}
+
+#' Compute rolling mean
+#' @param values The data values
+#' @param window Window width.
+#' @param align Window alignment.
+#' @param ... Arguments passed to `sum`.
+#' @noRd
+rollmean <- function(values, window, align, ...) {
+  n <- length(values)
+  out <- rep(NA, n)
+  left <- (window - 1L) %/% 2
+  right <- window - 1L - left
+  start <- 1L
+  end <- n
+  if (align == "center") {
+    start <- 1 + left
+    end <- n - right
+    w <- (start - left):(start + right)
+  } else if (align == "right") {
+    start <- window
+    w <- (start - window + 1L):start
+  } else {
+    end <- n - window + 1
+    w <- start:(start + window - 1L)
+  }
+  idx <- start:end
+  out[idx] <- values[window:n] - values[c(1, seq_len(n - window))]
+  out[start] <- sum(values[w], ...)
+  out[idx] <- cumsum(out[idx]) / window
+  out
+}
+
+#' Statistical mode
+#'
+#' @param x A `vector`.
+#' @noRd
+stat_mode <- function(x) {
+  ux <- unique(x[!is.na(x)])
+  if (length(ux) == 0) {
+    NA
+  } else {
+    ux[which.max(tabulate(match(x, ux)))]
+  }
+}
+
+#' Compute entropy by binning
+#'
+#' @param x A `numeric` vector.
+#' @param bins An `integer` for the number of bins.
+#' @noRd
+entropy <- function(x, bins) {
+  x <- x[!is.na(x)]
+  r <- range(x, na.rm = TRUE)
+  breaks <- seq(r[1L] - 1e-9, r[2L] + 1e-9 , length.out = bins + 1)
+  counts <- graphics::hist(x, breaks = breaks, plot = FALSE)$counts
+  prob <- counts / sum(counts)
+  prob <- prob[prob > 0]
+  -sum(prob * log2(prob))
 }
 
 # Residual Mean Square Differences

@@ -1,8 +1,8 @@
 #' Calculate Dynamic Complexity Measures for Time-Series Data
 #'
 #' Computes dynamic complexity and other rolling window measures for univariate
-#' or multivariate time series data. Supports various measures including complexity,
-#' fluctuation, distribution, autocorrelation, and basic statistics.
+#' or multivariate time series data. Supports various measures including
+#' complexity, fluctuation, distribution, autocorrelation, and basic statistics.
 #'
 #' @export
 #' @param data \[`tsn`, `ts`, `data.frame`, `numeric()`]\cr Time-series data.
@@ -102,36 +102,32 @@ complexity <- function(data, measures = "complexity", window = 7L,
   out
 }
 
-autocorr_lag1 <- function(x, ...) {
-  x <- x[!is.na(x)]
-  stats::acf(x, lag.max = 1L, plot = FALSE, na.action = na.pass)$acf[2L]
-}
-
-fluctuation_degree <- function(x, scale) {
-  f_max <- scale[2L] - scale[1L]
-  f_obs <- rmsqd(x)
-  max(0, min(1, f_obs / f_max))
-}
-
-distribution_degree <- function(x, scale) {
-  x <- x[!is.na(x)]
-  n <- length(x)
-  uniform <- seq(from = scale[1L], to = scale[2L], length.out = n)
-  empirical <- sort(x)
-  uni_diff <- diff(uniform)
-  emp_diff <- diff(empirical)
-  deviation <- uni_diff - emp_diff
-  dev_h <- deviation * (sign(deviation) + 1) / 2
-  div_diff <- dev_h / uni_diff
-  div_diff[is.infinite(div_diff)] <- NA
-  D <- 1 - mean(div_diff, na.rm = TRUE)
-  max(0, min(1, D))
-}
+# Complexity methods ------------------------------------------------------
 
 complexity_funs <- list(
-  fluctuation = fluctuation_degree,
-  distribution = distribution_degree,
-  autocorrelation = autocorr_lag1,
+  fluctuation = function(x, scale) {
+    f_max <- scale[2L] - scale[1L]
+    f_obs <- rmsqd(x)
+    max(0, min(1, f_obs / f_max))
+  },
+  distribution = function(x, scale) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    uniform <- seq(from = scale[1L], to = scale[2L], length.out = n)
+    empirical <- sort(x)
+    uni_diff <- diff(uniform)
+    emp_diff <- diff(empirical)
+    deviation <- uni_diff - emp_diff
+    dev_h <- deviation * (sign(deviation) + 1) / 2
+    div_diff <- dev_h / uni_diff
+    div_diff[is.infinite(div_diff)] <- NA
+    D <- 1 - mean(div_diff, na.rm = TRUE)
+    max(0, min(1, D))
+  },
+  autocorrelation = function(x, ...) {
+    x <- x[!is.na(x)]
+    stats::acf(x, lag.max = 1L, plot = FALSE, na.action = na.pass)$acf[2L]
+  },
   max = function(x, ...) min(x, na.rm = TRUE),
   min = function(x, ...) min(x, na.rm = TRUE),
   variance = function(x, ...) stats::var(x, na.rm = TRUE)
