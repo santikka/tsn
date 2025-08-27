@@ -162,41 +162,80 @@ plot_series <- function(data, selected, overlay = "v", points = FALSE,
 
 #' @export
 plot.tsn_ews <- function(x, ...) {
-  d <- data.frame(value = x$values, time = x$time)
+  d <- data.frame(
+    value = attr(x, "orig_values"),
+    time = attr(x, "orig_time")
+  )
   p_ts <- ggplot2::ggplot(
     d,
     ggplot2::aes(x = !!rlang::sym("time"), y = !!rlang::sym("value"))
   ) +
     ggplot2::geom_line() +
-    ggplot2::labs(title = "Original Time Series", y = "Value", x = NULL) +
     ggplot2::theme_bw() +
     ggplot2::theme(
       axis.text.x = ggplot2::element_blank(),
       axis.ticks.x = ggplot2::element_blank()
     )
-  p_metrics <- ifelse_(
-    attr(x, "method") == "rolling",
-    plot_rolling_ews(x, ...),
-    plot_expanding_ews(x, ...)
-  )
-  patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L) +
-    patchwork::plot_layout(guides = "collect")
+  if (attr(x, "method") == "rolling") {
+    p_ts <- p_ts +
+      ggplot2::labs(title = "Time Series", y = "Value", x = NULL)
+    p_metrics <- plot_rolling_ews(x, ...)
+    #patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L) +
+    #  patchwork::plot_layout(guides = "collect")
+  } else {
+    warn <- data.frame(time = x$time[x$detected == 1])
+    p_ts <- p_ts +
+      ggplot2::geom_rug(
+        data = warn,
+        ggplot2::aes(
+          x = !!rlang::sym("time")
+        ),
+        color = "red",
+        sides = "b",
+        length = ggplot2::unit(0.05, "npc"),
+        inherit.aes = FALSE
+      ) +
+      ggplot2::labs(
+        title = "Time Series with Detected Warnings",
+        y = "Value",
+        x = NULL
+      ) +
+      ggplot2::scale_shape_manual(
+        name = "EWS",
+        values = "|"
+      ) +
+      ggplot2::guides(
+        shape = ggplot2::guide_legend(
+          override.aes = list(
+            shape = "|"
+          )
+        )
+      ) +
+      ggplot2::scale_color_manual(
+        name = "EWS",
+        values = c(A = "|"),
+        labels = "Detected"
+      )
+    p_metrics <- plot_expanding_ews(x,  ...)
+  }
+  patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L)# +
+  #  patchwork::plot_layout(guides = "collect")
 }
 
 plot_rolling_ews <- function(x, ...) {
-  ews <- x$ews
-  ews$metric <- factor(
-    ews$metric,
-    levels = names(x$cor),
+  cor <- attr(x, "cor")
+  x$metric <- factor(
+    x$metric,
+    levels = names(cor),
     labels = lapply(
       paste0(
-        names(x$cor), "~(tau == ", round(x$cor, 2), ")"
+        names(cor), "~(tau == ", round(cor, 2), ")"
       ),
       str2lang
     )
   )
   ggplot2::ggplot(
-    ews,
+    x,
     ggplot2::aes(
       x = !!rlang::sym("time"),
       y = !!rlang::sym("std"),
@@ -234,4 +273,72 @@ plot_rolling_ews <- function(x, ...) {
     )
 }
 
+plot_expanding_ews <- function(x, ...) {
+  state_colors <- c(
+    "Stable" = "#440154FF",
+    "Vulnerable" = "#3B528BFF",
+    "Weak Warning" = "#21908CFF",
+    "Strong Warning" = "#5DC863FF",
+    "Failing" = "#FDE725FF",
+    "Warning" = "orange",
+    "Critical" = "red"
+  )
+  ggplot2::ggplot(
+    x,
+    ggplot2::aes(
+      x = !!rlang::sym("time"),
+      y = !!rlang::sym("z_score"),
+      color = !!rlang::sym("metric")
+    )
+  ) +
+    ggplot2::geom_line() +
+    ggplot2::geom_point(
+      ggplot2::aes(alpha = !!rlang::sym("detected")),
+      size = 2.5
+    ) +
+    #ggplot2::geom_line(ggplot2::aes(alpha = 0)) +
+    ggplot2::labs(
+      title = "Strength of Early Warning Signals",
+      #subtitle = "Points indicate when a metric's strength crosses the threshold",
+      y = "Strength of EWS",
+      x = NULL
+    ) +
+    ggplot2::scale_alpha_manual(
+      name = "EWS",
+      values = c(0, 1),
+      breaks = c("0", "1"),
+      labels = c("Undetected", "Detected"),
+      drop = FALSE,
+      guide = ggplot2::guide_legend(
+        order = 1,
+        override.aes = list(
+          linetype = c(1, 0),
+          shape = c(NA, 19),
+          alpha = c(1, 1),
+          col = "black"
+        )
+      )
+    ) +
+    ggplot2::scale_color_viridis_d(
+      name = "EWS Indicator",
+      guide = ggplot2::guide_legend(
+        order = 2,
+        override.aes = list(
+          linewidth = 0.9,
+          linetype = 1,
+          shape = NA
+        )
+      )
+    ) +
+    #ggplot2::coord_cartesian(ylim = c(y_min, y_max)) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank()
+    ) +
+    ggplot2::geom_hline(
+      yintercept = attr(x, "threshold"),
+      linetype = "dashed", color = "grey50"
+    )
+}
 

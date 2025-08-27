@@ -17,7 +17,7 @@
 #' @export
 detect_warnings <- function(data, ts_col, time_col, method = "rolling",
                             metrics = "all", window = 50, burnin = 30,
-                            detrend = "none", ...) {
+                            detrend = "none", threshold = 2, ...) {
   data <- as_tsn(data[[ts_col]], data[[time_col]])
   values <- get_values(data)
   time <- get_time(data)
@@ -45,7 +45,7 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
   ifelse_(
     method == "rolling",
     rolling_ews(values, time, metrics, window),
-    expanding_ews(values, time, metrics, burnin)
+    expanding_ews(values, time, metrics, burnin, threshold)
   )
 }
 
@@ -123,19 +123,17 @@ rolling_ews <- function(x, time, w) {
     dplyr::mutate(std = as.numeric(scale(!!rlang::sym("score")))) |>
     dplyr::ungroup()
   structure(
-    list(
-      ews = long,
-      cor = kendall_tau,
-      values = x,
-      time = time
-    ),
+    long,
+    orig_values = x,
+    orig_time = time,
+    cor = kendall_tau,
     method = "rolling",
-    class = "tsn_ews"
+    class = c("tsn_ews", "tbl_df", "tbl", "data.frame")
   )
 }
 
-expanding_ews <- function(x, time, b) {
-  w <- b + 1
+expanding_ews <- function(x, time, burnin, threshold) {
+  w <- burnin + 1
   n <- length(x)
   m <- n - w + 1L
   idx <- seq_len(m)
@@ -181,7 +179,7 @@ expanding_ews <- function(x, time, b) {
   }
   expanding_sd <- sqrt(expanding_var)
   metrics <- data.frame(
-    time = time[(b + 1):n],
+    time = time[(burnin + 1):n],
     ar1 = expanding_ar1,
     mean = expanding_mean,
     sd = expanding_sd,
@@ -200,9 +198,24 @@ expanding_ews <- function(x, time, b) {
     values_to = "score"
   ) |>
     dplyr::group_by(!!rlang::sym("metric")) |>
-    dplyr::mutate(z_score = expanding_z(!!rlang::sym("score"))) |>
-    dplyr::mutate()
+    dplyr::mutate(
+      z_score = expanding_z(!!rlang::sym("score")),
+      crossed = !!rlang::sym("z_score") *
+        signs[!!rlang::sym("metric")] > threshold,
+      detected = factor(
+        as.integer(crossed & dplyr::lag(crossed)),
+        levels = c(1, 0)
+      )
+    ) |>
     dplyr::ungroup()
+  structure(
+    long,
+    orig_values = x,
+    orig_time = time,
+    threshold = threshold,
+    method = "expanding",
+    class = c("tsn_ews", "tbl_df", "tbl", "data.frame")
+  )
 }
 
 expanding_z <- function(x) {
