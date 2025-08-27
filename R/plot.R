@@ -160,3 +160,78 @@ plot_series <- function(data, selected, overlay = "v", points = FALSE,
     ggplot2::theme(legend.position = "bottom")
 }
 
+#' @export
+plot.tsn_ews <- function(x, ...) {
+  d <- data.frame(value = x$values, time = x$time)
+  p_ts <- ggplot2::ggplot(
+    d,
+    ggplot2::aes(x = !!rlang::sym("time"), y = !!rlang::sym("value"))
+  ) +
+    ggplot2::geom_line() +
+    ggplot2::labs(title = "Original Time Series", y = "Value", x = NULL) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      axis.text.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank()
+    )
+  p_metrics <- ifelse_(
+    attr(x, "method") == "rolling",
+    plot_rolling_ews(x, ...),
+    plot_expanding_ews(x, ...)
+  )
+  patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L) +
+    patchwork::plot_layout(guides = "collect")
+}
+
+plot_rolling_ews <- function(x, ...) {
+  ews <- x$ews
+  ews$metric <- factor(
+    ews$metric,
+    levels = names(x$cor),
+    labels = lapply(
+      paste0(
+        names(x$cor), "~(tau == ", round(x$cor, 2), ")"
+      ),
+      str2lang
+    )
+  )
+  ggplot2::ggplot(
+    ews,
+    ggplot2::aes(
+      x = !!rlang::sym("time"),
+      y = !!rlang::sym("std"),
+      color = !!rlang::sym("metric")
+    )
+  ) +
+    ggplot2::geom_line(linewidth = 1) +
+    ggplot2::facet_wrap(
+      as.formula("~metric"),
+      scales = "free_y",
+      ncol = 3,
+      drop = TRUE,
+      labeller = ggplot2::label_parsed
+    ) +
+    ggplot2::labs(
+      subtitle = "Rolling EWS Indicators",
+      y = "Metric Value",
+      x = "Time"
+    ) +
+    ggplot2::scale_color_viridis_d() +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+      legend.position = "none",
+      strip.text = ggplot2::element_text(
+        face = "bold", size = 10, margin = ggplot2::margin(b = 5)
+      ),
+      panel.spacing = ggplot2::unit(1, "lines"),
+      axis.text = ggplot2::element_text(size = 8),
+      axis.title.x = ggplot2::element_text(size = 10),
+      axis.title.y = ggplot2::element_text(angle = 90, size = 10),
+      plot.subtitle = ggplot2::element_text(
+        size = 11, margin = ggplot2::margin(b = 10)
+      ),
+      panel.background = ggplot2::element_rect(fill = "white", color = NA),
+    )
+}
+
+
