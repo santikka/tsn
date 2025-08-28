@@ -17,12 +17,13 @@
 #' @export
 detect_warnings <- function(data, ts_col, time_col, method = "rolling",
                             metrics = "all", window = 50, burnin = 30,
-                            detrend = "none", threshold = 2, ...) {
+                            detrend = "none", threshold = 2, bandwidth,
+                            span, degree, ...) {
   data <- as_tsn(data[[ts_col]], data[[time_col]])
   values <- get_values(data)
   time <- get_time(data)
   method <- check_match(method, c("rolling", "expanding"))
-  available_metrics <- c("ar1", "SD", "skew", "kurt", "cv", "rr")
+  available_metrics <- c("ar1", "sd", "skew", "kurt", "cv", "rr")
   metrics <- metrics %m% available_metrics
   metrics <- check_match(
     metrics,
@@ -34,14 +35,17 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
     available_metrics,
     metrics
   )
-  window <- check_range(window, min = 0.0, max = 100.0)
-  burnin <- check_range(burnin, min = 0.0, max = 100.0)
+  check_range(window, min = 0.0, max = 100.0)
+  check_range(burnin, min = 0.0, max = 100.0)
   detrend <- check_match(
     detrend,
     c("none", "gaussian", "loess", "linear", "first-diff")
   )
   window <- floor(0.01 * window * length(values))
-  values <- detrend_ts(values, time, detrend, ...)
+  bandwidth <- bandwidth %m% round(window / 2)
+  span <- span %m% 0.25
+  degree <- degree %m% 2
+  values <- detrend_ts(values, time, detrend, window, ...)
   ifelse_(
     method == "rolling",
     rolling_ews(values, time, metrics, window),
@@ -49,7 +53,7 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
   )
 }
 
-rolling_ews <- function(x, time, w) {
+rolling_ews <- function(x, time, metrics, w) {
   n <- length(x)
   m <- n - w + 1L
   idx <- seq_len(m)
@@ -94,7 +98,7 @@ rolling_ews <- function(x, time, w) {
     rolling_kurt[i] <- m4 / (m2^2)
   }
   rolling_sd <- sqrt(rolling_var)
-  metrics <- data.frame(
+  rolling_metrics <- data.frame(
     time = time[w:n],
     ar1 = rolling_ar1,
     mean = rolling_mean,
@@ -104,7 +108,8 @@ rolling_ews <- function(x, time, w) {
     cv = rolling_sd / rolling_mean,
     rr = 1.0 - rolling_ar1
   )
-  kendall_tau <- apply(metrics[, -1], 2, function(z) {
+  rolling_metrics <- rolling_metrics[, c("time", metrics)]
+  kendall_tau <- apply(rolling_metrics[, -1], 2, function(z) {
     stats::cor.test(
       x = idx,
       y = z,
@@ -114,7 +119,7 @@ rolling_ews <- function(x, time, w) {
     )$estimate
   })
   long <- tidyr::pivot_longer(
-    metrics,
+    rolling_metrics,
     cols = !(!!rlang::sym("time")),
     names_to = "metric",
     values_to = "score"
@@ -132,7 +137,7 @@ rolling_ews <- function(x, time, w) {
   )
 }
 
-expanding_ews <- function(x, time, burnin, threshold) {
+expanding_ews <- function(x, time, metrics, burnin, threshold) {
   w <- burnin + 1
   n <- length(x)
   m <- n - w + 1L
@@ -178,7 +183,7 @@ expanding_ews <- function(x, time, burnin, threshold) {
     expanding_kurt[i] <- m4 / (m2^2)
   }
   expanding_sd <- sqrt(expanding_var)
-  metrics <- data.frame(
+  expanding_metrics <- data.frame(
     time = time[(burnin + 1):n],
     ar1 = expanding_ar1,
     mean = expanding_mean,
@@ -188,11 +193,14 @@ expanding_ews <- function(x, time, burnin, threshold) {
     cv = expanding_sd / expanding_mean,
     rr = 1.0 - expanding_ar1
   )
-  signs <- rep(1.0, ncol(metrics) - 1)
-  names(signs) <- names(metrics[-1])
-  signs["rr"] <- -1.0
+  expanding_metrics <- expanding_metrics[, c("time", metrics)]
+  signs <- rep(1.0, ncol(expanding_metrics) - 1)
+  names(signs) <- names(expanding_metrics[-1])
+  if ("rr" %in% names(signs)) {
+    signs["rr"] <- -1.0
+  }
   long <- tidyr::pivot_longer(
-    metrics,
+    expanding_metrics,
     cols = !(!!rlang::sym("time")),
     names_to = "metric",
     values_to = "score"
@@ -242,9 +250,6 @@ expanding_z <- function(x) {
 }
 
 detrend_ts <- function(values, time, method, window, bandwith, span, degree) {
-  bandwidth <- bandwidth %m% round(window / 2)
-  span <- span %m% 0.25
-  degree <- degree %m% 2
   switch(method,
     `gaussian` = {
       smoothed <- stats::ksmooth(

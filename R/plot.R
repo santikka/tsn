@@ -188,38 +188,45 @@ plot.tsn_ews <- function(x, ...) {
       ggplot2::geom_rug(
         data = warn,
         ggplot2::aes(
-          x = !!rlang::sym("time")
+          x = !!rlang::sym("time"), color = "EWS"
         ),
-        color = "red",
+        show.legend = TRUE,
         sides = "b",
         length = ggplot2::unit(0.05, "npc"),
         inherit.aes = FALSE
+      ) +
+      # Add point to control shape
+      ggplot2::geom_point(
+        data = data.frame(x = -Inf, y = -Inf),
+        ggplot2::aes(
+          x = !!rlang::sym("x"), y = !!rlang::sym("y"), color = "Void"
+        ),
+        show.legend = TRUE,
+        na.rm = TRUE
       ) +
       ggplot2::labs(
         title = "Time Series with Detected Warnings",
         y = "Value",
         x = NULL
       ) +
-      ggplot2::scale_shape_manual(
-        name = "EWS",
-        values = "|"
-      ) +
-      ggplot2::guides(
-        shape = ggplot2::guide_legend(
-          override.aes = list(
-            shape = "|"
-          )
-        )
-      ) +
       ggplot2::scale_color_manual(
         name = "EWS",
-        values = c(A = "|"),
-        labels = "Detected"
+        values = c(EWS = "red", Void = "white"),
+        labels = c("Detected", "")
+      ) +
+      ggplot2::guides(
+        color = ggplot2::guide_legend(
+          override.aes = list(
+            linetype = c(0, 0),
+            shape = c("|", "."),
+            size = 4
+          )
+        )
       )
+
     p_metrics <- plot_expanding_ews(x,  ...)
   }
-  patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L)# +
-  #  patchwork::plot_layout(guides = "collect")
+  patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L)
 }
 
 plot_rolling_ews <- function(x, ...) {
@@ -274,6 +281,7 @@ plot_rolling_ews <- function(x, ...) {
 }
 
 plot_expanding_ews <- function(x, ...) {
+  warn <- x[x$detected == 1, ]
   state_colors <- c(
     "Stable" = "#440154FF",
     "Vulnerable" = "#3B528BFF",
@@ -288,49 +296,57 @@ plot_expanding_ews <- function(x, ...) {
     ggplot2::aes(
       x = !!rlang::sym("time"),
       y = !!rlang::sym("z_score"),
-      color = !!rlang::sym("metric")
+      color = !!rlang::sym("metric"),
     )
   ) +
     ggplot2::geom_line() +
     ggplot2::geom_point(
-      ggplot2::aes(alpha = !!rlang::sym("detected")),
+      data = warn,
+      ggplot2::aes(
+        x = !!rlang::sym("time"),
+        y = !!rlang::sym("z_score"),
+        alpha = "EWS"
+      ),
       size = 2.5
     ) +
-    #ggplot2::geom_line(ggplot2::aes(alpha = 0)) +
+    # Add line for alpha
+    ggplot2::geom_line(
+     data = warn,
+     ggplot2::aes(
+       x = !!rlang::sym("time"),
+       y = !!rlang::sym("z_score"),
+       color = !!rlang::sym("metric"),
+       alpha = "Void"
+     ),
+     inherit.aes = FALSE,
+    ) +
     ggplot2::labs(
       title = "Strength of Early Warning Signals",
       #subtitle = "Points indicate when a metric's strength crosses the threshold",
-      y = "Strength of EWS",
+      y = "Scaled Metric Value",
       x = NULL
-    ) +
-    ggplot2::scale_alpha_manual(
-      name = "EWS",
-      values = c(0, 1),
-      breaks = c("0", "1"),
-      labels = c("Undetected", "Detected"),
-      drop = FALSE,
-      guide = ggplot2::guide_legend(
-        order = 1,
-        override.aes = list(
-          linetype = c(1, 0),
-          shape = c(NA, 19),
-          alpha = c(1, 1),
-          col = "black"
-        )
-      )
     ) +
     ggplot2::scale_color_viridis_d(
       name = "EWS Indicator",
       guide = ggplot2::guide_legend(
         order = 2,
         override.aes = list(
-          linewidth = 0.9,
-          linetype = 1,
+          linewidth = 1,
+          linetype = "solid",
           shape = NA
         )
       )
     ) +
-    #ggplot2::coord_cartesian(ylim = c(y_min, y_max)) +
+    ggplot2::scale_alpha_manual(
+      name = "EWS",
+      values = c(EWS = 1, Void = 1),
+      labels = c("Detected", "Not Detected"),
+      guide = ggplot2::guide_legend(
+        order = 1,
+        alpha = c(1, 1),
+        linetype = c("blank", "solid")
+      )
+    ) +
     ggplot2::theme_bw() +
     ggplot2::theme(
       axis.text.x = ggplot2::element_blank(),
@@ -338,7 +354,8 @@ plot_expanding_ews <- function(x, ...) {
     ) +
     ggplot2::geom_hline(
       yintercept = attr(x, "threshold"),
-      linetype = "dashed", color = "grey50"
+      linetype = "dashed",
+      color = "grey50"
     )
 }
 

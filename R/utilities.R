@@ -1,16 +1,3 @@
-#' Assign a default value to a missing argument
-#'
-#' @param x An \R object.
-#' @param d Default value to use.
-#' @noRd
-default <- function(x, d) {
-  if (missing(x)) {
-    d
-  } else {
-    x
-  }
-}
-
 #' Apply rolling functions
 #'
 #' @param fun The function to apply.
@@ -137,6 +124,15 @@ if (base::getRversion() < "4.4.0") {
   `%||%` <- function(x, y) {
     if (is.null(x)) y else x
   }
+}
+
+#' Default value operator for a missing argument
+#'
+#' @param x An \R object
+#' @param y An \R object to assign if `x` is missing
+#' @noRd
+`%m%` <- function(x, y) {
+  if (missing(x)) y else x
 }
 
 #' Number of unique elements in a vector

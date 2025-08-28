@@ -45,8 +45,8 @@ build_network <- function(data, measure = "euclidean", window = 1L, step = 1L,
   check_missing(data)
   measure <- check_match(measure, get_distance_measures())
   method <- check_match(method, get_network_methods())
-  window <- default(window, 1L)
-  step <- default(step, 1L)
+  window <- window %m% 1L
+  step <- step %m% 1L
   check_flag(pairwise)
   check_flag(symmetric)
   check_flag(normalize)
