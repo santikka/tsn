@@ -225,7 +225,9 @@ plot.tsn_ews <- function(x, ...) {
       )
 
     p_metrics <- plot_expanding_ews(x,  ...)
+    #p_cls <- plot_classification(x)
   }
+  #patchwork::wrap_plots(p_ts, p_metrics, p_cls, ncol = 1L)
   patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L)
 }
 
@@ -282,6 +284,7 @@ plot_rolling_ews <- function(x, ...) {
 
 plot_expanding_ews <- function(x, ...) {
   warn <- x[x$detected == 1, ]
+  cls <- classify_ews(x)
   state_colors <- c(
     "Stable" = "#440154FF",
     "Vulnerable" = "#3B528BFF",
@@ -320,6 +323,9 @@ plot_expanding_ews <- function(x, ...) {
      ),
      inherit.aes = FALSE,
     ) +
+    ggplot2::scale_y_continuous(
+      breaks = c(-4, -2, 0, 2, 4)
+    ) +
     ggplot2::labs(
       title = "Strength of Early Warning Signals",
       #subtitle = "Points indicate when a metric's strength crosses the threshold",
@@ -353,9 +359,36 @@ plot_expanding_ews <- function(x, ...) {
       axis.ticks.x = ggplot2::element_blank()
     ) +
     ggplot2::geom_hline(
-      yintercept = attr(x, "threshold"),
+      yintercept = c(1, -1) * attr(x, "threshold"),
       linetype = "dashed",
       color = "grey50"
     )
 }
 
+plot_classification <- function(x) {
+  state_colors <- c(
+    "Stable" = "#440154FF",
+    "Vulnerable" = "#3B528BFF",
+    "Weak Warning" = "#21908CFF",
+    "Strong Warning" = "#5DC863FF",
+    "Failing" = "#FDE725FF",
+    "Warning" = "orange",
+    "Critical" = "red"
+  )
+  x$state <- factor(x$state, levels = names(state_colors))
+  ggplot2::ggplot(x, ggplot2::aes(x = !!rlang::sym("time"), y = 1)) +
+    ggplot2::geom_tile(ggplot2::aes(fill = !!rlang::sym("state"), height = 1)) +
+    ggplot2::scale_fill_manual(
+      values = state_colors,
+      name = "System State",
+      drop = FALSE
+    ) +
+    ggplot2::labs(x = "Time Point", y = "") +
+    ggplot2::theme_bw() +
+    ggplot2::theme(
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    )
+}

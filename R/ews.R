@@ -1,23 +1,31 @@
 #' Detect Early Warning Signals in a Time Series
 #'
-#' @param data A numeric vector or a data frame.
-#' @param ts_col Character. The name of the value column (if `data` is a data frame).
-#' @param time_col Character. The name of the time column (if `data` is a data frame).
-#' @param metrics Character vector. EWS metrics to calculate. Default: `"all"`.
-#' @param method Character. The analysis method: `"rolling"` or `"expanding"`.
-#' @param window Integer (percentage). Window size for the rolling method.
+#' @param data A `data.frame` that contains the time series data and time
+#' points.
+#' @param ts_col A `character` string naming the column for the actual
+#' time series data values.
+#' @param time_col A `character` string naming the column for the time points.
+#' @param method A `character` string for the analysis method.
+#' Either `"rolling"` or `"expanding"` for rolling window and expanding window,
+#' respectively.
+#' @param metrics A `character` vector for the EWS metrics to compute.
+#' The default is `"all"` computing all metrics.
+#' @param window A `numeric` value (percentage) for the window size of
+#' the rolling window method.
 #' @param burnin Integer. Burn-in period for the expanding method.
+#' @param demean A `logical` value. If `TRUE` (the default), the `"ar1"`
+#' metric will be based on an AR1 model where the mean of the observations
+#' is first subtracted. See [stats::ar.ols()] for details.
 #' @param detrend TODO
-#' @param threshold Numeric. For `expanding`, the Z-score threshold. For `rolling`,
-#'   the Kendall Tau threshold for a strong signal. Defaults are `2` and `0.7`.
-#' @param tail.direction Character. Test direction for the expanding method.
-#'
+#' @param threshold A `numeric` value giving the z-score threshold for the
+#' expanding window method..
 #' @return An object of class `detect_warning` containing the EWS results,
 #'   parameters, original data, and a summary.
 #' @export
 detect_warnings <- function(data, ts_col, time_col, method = "rolling",
                             metrics = "all", window = 50, burnin = 30,
-                            detrend = "none", threshold = 2, bandwidth,
+                            detrend = "none", demean = TRUE,
+                            threshold = 2, bandwidth,
                             span, degree, ...) {
   data <- as_tsn(data[[ts_col]], data[[time_col]])
   values <- get_values(data)
@@ -37,6 +45,7 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
   )
   check_range(window, min = 0.0, max = 100.0)
   check_range(burnin, min = 0.0, max = 100.0)
+  check_flag(demean)
   detrend <- check_match(
     detrend,
     c("none", "gaussian", "loess", "linear", "first-diff")
@@ -48,16 +57,18 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
   values <- detrend_ts(values, time, detrend, window, ...)
   ifelse_(
     method == "rolling",
-    rolling_ews(values, time, metrics, window),
-    expanding_ews(values, time, metrics, burnin, threshold)
+    rolling_ews(values, time, metrics, window, demean),
+    expanding_ews(values, time, metrics, burnin, demean, threshold)
   )
 }
 
-rolling_ews <- function(x, time, metrics, w) {
+rolling_ews <- function(x, time, metrics, window, demean) {
+  w <- window
   n <- length(x)
   m <- n - w + 1L
   idx <- seq_len(m)
   rolling_ar1 <- numeric(m)
+  rolling_ar1_demean <- numeric(m)
   rolling_mean <- numeric(m)
   rolling_var <- numeric(m)
   rolling_skew <- numeric(m)
@@ -67,13 +78,20 @@ rolling_ews <- function(x, time, metrics, w) {
   s2 <- sum(y^2)
   s3 <- sum(y^3)
   s4 <- sum(y^4)
+  s_cur <- s1 - y[1]
+  s_lag <- s1 - x[w]
   s_lag2 <- s2 - x[w]^2
   s_prod <- sum(y[-1] * y[-w])
   mu <- s1 / w
-  m2  <- (s2 - s1^2 / w) / w
-  m3  <- (s3 - 3 * mu * s2 + 2 * w * mu^3) / w
-  m4  <- (s4 - 4 * mu * s3 + 6 * mu^2 * s2 - 3 * w * mu^4) / w
-  rolling_ar1[1] <- s_prod / s_lag2
+  m2 <- (s2 - s1^2 / w) / w
+  m3 <- (s3 - 3 * mu * s2 + 2 * w * mu^3) / w
+  m4 <- (s4 - 4 * mu * s3 + 6 * mu^2 * s2 - 3 * w * mu^4) / w
+  mu_sq <- (w - 1) * mu^2
+  rolling_ar1[1] <- ifelse_(
+    demean,
+    (s_prod - mu * (s_cur + s_lag) + mu_sq) / (s_lag2 - 2 * mu * s_lag + mu_sq),
+    s_prod / s_lag2
+  )
   rolling_mean[1] <- mu
   rolling_var[1] <- m2 * w / (w - 1)
   rolling_skew[1] <- m3 / (m2^(3/2))
@@ -88,10 +106,18 @@ rolling_ews <- function(x, time, metrics, w) {
     s_lag2 <- s_lag2 + x[i + w - 2L]^2 - x_old^2
     s_prod <- s_prod - x_old * x[i] + x_new * x[i + w - 2L]
     mu <- s1 / w
-    m2  <- (s2 - s1^2 / w) / w
-    m3  <- (s3 - 3 * mu * s2 + 2 * w * mu^3) / w
-    m4  <- (s4 - 4 * mu * s3 + 6 * mu^2 * s2 - 3 * w * mu^4) / w
-    rolling_ar1[i] <- s_prod / s_lag2
+    m2 <- (s2 - s1^2 / w) / w
+    m3 <- (s3 - 3 * mu * s2 + 2 * w * mu^3) / w
+    m4 <- (s4 - 4 * mu * s3 + 6 * mu^2 * s2 - 3 * w * mu^4) / w
+    if (demean) {
+      s_lag <- s_lag + x[i + w - 2L] - x_old
+      s_cur <- s_cur + x_new - x[i]
+      mu_sq <- (w - 1) * mu^2
+      rolling_ar1[i] <- (s_prod - mu * (s_cur + s_lag) + mu_sq) /
+        (s_lag2 - 2 * mu * s_lag + mu_sq)
+    } else {
+      rolling_ar1[i] <- s_prod / s_lag2
+    }
     rolling_mean[i] <- mu
     rolling_var[i] <- m2 * w / (w - 1)
     rolling_skew[i] <- m3 / (m2^(3/2))
@@ -109,7 +135,7 @@ rolling_ews <- function(x, time, metrics, w) {
     rr = 1.0 - rolling_ar1
   )
   rolling_metrics <- rolling_metrics[, c("time", metrics)]
-  kendall_tau <- apply(rolling_metrics[, -1], 2, function(z) {
+  kendall_tau <- apply(rolling_metrics[, -1, drop = FALSE], 2, function(z) {
     stats::cor.test(
       x = idx,
       y = z,
@@ -137,7 +163,7 @@ rolling_ews <- function(x, time, metrics, w) {
   )
 }
 
-expanding_ews <- function(x, time, metrics, burnin, threshold) {
+expanding_ews <- function(x, time, metrics, burnin, demean, threshold) {
   w <- burnin + 1
   n <- length(x)
   m <- n - w + 1L
@@ -152,13 +178,20 @@ expanding_ews <- function(x, time, metrics, burnin, threshold) {
   s2 <- sum(y^2)
   s3 <- sum(y^3)
   s4 <- sum(y^4)
+  s_cur <- s1 - y[1]
+  s_lag <- s1 - x[w]
   s_lag2 <- s2 - x[w]^2
   s_prod <- sum(y[-1] * y[-w])
   mu <- s1 / w
   m2  <- (s2 - s1^2 / w) / w
   m3  <- (s3 - 3 * mu * s2 + 2 * w * mu^3) / w
   m4  <- (s4 - 4 * mu * s3 + 6 * mu^2 * s2 - 3 * w * mu^4) / w
-  expanding_ar1[1] <- s_prod / s_lag2
+  mu_sq <- (w - 1) * mu^2
+  expanding_ar1[1] <- ifelse_(
+    demean,
+    (s_prod - mu * (s_cur + s_lag) + mu_sq) / (s_lag2 - 2 * mu * s_lag + mu_sq),
+    s_prod / s_lag2
+  )
   expanding_mean[1] <- mu
   expanding_var[1] <- m2 * w / (w - 1)
   expanding_skew[1] <- m3 / (m2^(3/2))
@@ -176,7 +209,15 @@ expanding_ews <- function(x, time, metrics, burnin, threshold) {
     m2  <- (s2 - s1^2 / w) / w
     m3  <- (s3 - 3 * mu * s2 + 2 * w * mu^3) / w
     m4  <- (s4 - 4 * mu * s3 + 6 * mu^2 * s2 - 3 * w * mu^4) / w
-    expanding_ar1[i] <- s_prod / s_lag2
+    if (demean) {
+      s_lag <- s_lag + x[w - 1L]
+      s_cur <- s_cur + x_new
+      mu_sq <- (w - 1) * mu^2
+      expanding_ar1[i] <- (s_prod - mu * (s_cur + s_lag) + mu_sq) /
+        (s_lag2 - 2 * mu * s_lag + mu_sq)
+    } else {
+      expanding_ar1[i] <- s_prod / s_lag2
+    }
     expanding_mean[i] <- mu
     expanding_var[i] <- m2 * w / (w - 1)
     expanding_skew[i] <- m3 / (m2^(3/2))
@@ -281,4 +322,47 @@ detrend_ts <- function(values, time, method, window, bandwith, span, degree) {
       values
     }
   )
+}
+
+#' Analyzes the expanding window EWS results to classify the system
+#' state at each time point based on the number of metrics showing warnings.
+#' This provides a qualitative assessment of system stability.
+#'
+#' @param x A `tsn_ews` object from the expanding window method.
+#' @return A `data.frame` with time, warning count, and state classifications.
+#' @noRd
+classify_ews <- function(x) {
+  n_metrics <- length(unique(x$metric))
+  d <- x |>
+    dplyr::filter(!is.na(!!rlang::sym("z_score"))) |>
+    dplyr::group_by(!!rlang::sym("time")) |>
+    dplyr::summarize(
+      time = !!rlang::sym("time"),
+      count = sum(as.integer(!!rlang::sym("detected")))
+    )
+  if (n_metrics == 1) {
+   d$state <- cut(
+      d$count,
+      breaks = c(-Inf, 0, 1, Inf),
+      labels = c("Stable", "Warning", "Critical"),
+      right = TRUE
+    )
+  } else if (n_metrics <= 3) {
+    d$state <- cut(
+      d$count,
+      breaks = c(-Inf, 0, 1, n_metrics, Inf),
+      labels = c("Stable", "Vulnerable", "Warning", "Critical"),
+      right = TRUE
+    )
+  } else {
+    d$state <- cut(
+      d$count,
+      breaks = c(-Inf, 0, 1, 2, 0.5 * n_metrics, Inf),
+      labels = c(
+        "Stable", "Vulnerable", "Weak Warning", "Strong Warning", "Failing"
+      ),
+      right = TRUE
+    )
+  }
+  d
 }
