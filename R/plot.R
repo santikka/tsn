@@ -179,11 +179,11 @@ plot.tsn_ews <- function(x, ...) {
   if (attr(x, "method") == "rolling") {
     p_ts <- p_ts +
       ggplot2::labs(title = "Time Series", y = "Value", x = NULL)
-    p_metrics <- plot_rolling_ews(x, ...)
-    #patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L) +
-    #  patchwork::plot_layout(guides = "collect")
+    p_metrics <- plot_rolling_ews(x)
+    patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L)
   } else {
     warn <- data.frame(time = x$time[x$detected == 1])
+    cls <- classify_ews(x)
     p_ts <- p_ts +
       ggplot2::geom_rug(
         data = warn,
@@ -223,15 +223,15 @@ plot.tsn_ews <- function(x, ...) {
           )
         )
       )
-
-    p_metrics <- plot_expanding_ews(x,  ...)
-    #p_cls <- plot_classification(x)
+    p_metrics <- plot_expanding_ews(x)
+    p_cls <- plot_classification(cls)
+    patchwork::wrap_plots(
+      p_ts, p_metrics, p_cls, ncol = 1L, heights = c(4, 8, 1)
+    )
   }
-  #patchwork::wrap_plots(p_ts, p_metrics, p_cls, ncol = 1L)
-  patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L)
 }
 
-plot_rolling_ews <- function(x, ...) {
+plot_rolling_ews <- function(x) {
   cor <- attr(x, "cor")
   x$metric <- factor(
     x$metric,
@@ -260,7 +260,7 @@ plot_rolling_ews <- function(x, ...) {
       labeller = ggplot2::label_parsed
     ) +
     ggplot2::labs(
-      subtitle = "Rolling EWS Indicators",
+      title = "Rolling EWS Indicators",
       y = "Metric Value",
       x = "Time"
     ) +
@@ -275,16 +275,15 @@ plot_rolling_ews <- function(x, ...) {
       axis.text = ggplot2::element_text(size = 8),
       axis.title.x = ggplot2::element_text(size = 10),
       axis.title.y = ggplot2::element_text(angle = 90, size = 10),
-      plot.subtitle = ggplot2::element_text(
-        size = 11, margin = ggplot2::margin(b = 10)
+      plot.title = ggplot2::element_text(
+        margin = ggplot2::margin(b = 5)
       ),
       panel.background = ggplot2::element_rect(fill = "white", color = NA),
     )
 }
 
-plot_expanding_ews <- function(x, ...) {
+plot_expanding_ews <- function(x) {
   warn <- x[x$detected == 1, ]
-  cls <- classify_ews(x)
   state_colors <- c(
     "Stable" = "#440154FF",
     "Vulnerable" = "#3B528BFF",
@@ -377,18 +376,24 @@ plot_classification <- function(x) {
   )
   x$state <- factor(x$state, levels = names(state_colors))
   ggplot2::ggplot(x, ggplot2::aes(x = !!rlang::sym("time"), y = 1)) +
-    ggplot2::geom_tile(ggplot2::aes(fill = !!rlang::sym("state"), height = 1)) +
+    ggplot2::geom_tile(
+      ggplot2::aes(fill = !!rlang::sym("state"), height = 1),
+      show.legend = TRUE
+    ) +
     ggplot2::scale_fill_manual(
       values = state_colors,
-      name = "System State",
+      name = "System\n  State",
       drop = FALSE
     ) +
-    ggplot2::labs(x = "Time Point", y = "") +
+    ggplot2::labs(x = NULL, y = "") +
     ggplot2::theme_bw() +
     ggplot2::theme(
-      axis.text.y = element_blank(),
-      axis.ticks.y = element_blank(),
-      panel.grid.major.y = element_blank(),
-      panel.grid.minor = element_blank()
+      axis.text.y = ggplot2::element_blank(),
+      axis.ticks.y = ggplot2::element_blank(),
+      axis.text.x = ggplot2::element_blank(),
+      axis.ticks.x = ggplot2::element_blank(),
+      panel.grid.major.y = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "bottom"
     )
 }

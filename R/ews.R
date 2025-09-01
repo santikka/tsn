@@ -1,5 +1,6 @@
 #' Detect Early Warning Signals in a Time Series
 #'
+#' @export
 #' @param data A `data.frame` that contains the time series data and time
 #' points.
 #' @param ts_col A `character` string naming the column for the actual
@@ -9,24 +10,44 @@
 #' Either `"rolling"` or `"expanding"` for rolling window and expanding window,
 #' respectively.
 #' @param metrics A `character` vector for the EWS metrics to compute.
-#' The default is `"all"` computing all metrics.
+#' The default is `"all"` computing all metrics. The available options are:
+#'
+#'   * `"ar1`: The autoregressive coefficient of an AR1 model.
+#'   * `"sd"`: Standard deviation.
+#'   * `"skew"`: Skewness.
+#'   * `"kurt"`: Kurtosis.
+#'   * `"cv"`: Coefficient of variation.
+#'   * `"rr"`: Return rate (`1 - ar1`).
+#'   * `"all"`: All of the above.
+#'
 #' @param window A `numeric` value (percentage) for the window size of
 #' the rolling window method.
 #' @param burnin Integer. Burn-in period for the expanding method.
 #' @param demean A `logical` value. If `TRUE` (the default), the `"ar1"`
 #' metric will be based on an AR1 model where the mean of the observations
 #' is first subtracted. See [stats::ar.ols()] for details.
-#' @param detrend TODO
+#' @param detrend A `character` string naming a detrending method to apply to
+#' the time series before computing the metrics. The default is `"none"` for
+#' no detrending. The available options are:
+#'
+#'   * `"gaussian"`: Kernel-based regression smoothing with a Gaussian kernel
+#'     via [stats::ksmooth()].
+#'   * `"loess"`: Local polynomial regression via [stats::loess()].
+#'   * `"linear"`: Linear regression via [stats::lm()].
+#'   * `"first-diff"`: For first differences.
+#'   * `"none"`: Use the original time series data.
+#'
 #' @param threshold A `numeric` value giving the z-score threshold for the
-#' expanding window method..
+#' expanding window method.
+#' @param bandwidth See [stats::ksmooth()].
+#' @param span See [stats::loess()].
+#' @param degree See [stats::loess].
 #' @return An object of class `detect_warning` containing the EWS results,
 #'   parameters, original data, and a summary.
-#' @export
 detect_warnings <- function(data, ts_col, time_col, method = "rolling",
                             metrics = "all", window = 50, burnin = 30,
-                            detrend = "none", demean = TRUE,
-                            threshold = 2, bandwidth,
-                            span, degree, ...) {
+                            demean = TRUE, detrend = "none",
+                            threshold = 2, bandwidth, span, degree, ...) {
   data <- as_tsn(data[[ts_col]], data[[time_col]])
   values <- get_values(data)
   time <- get_time(data)
@@ -78,24 +99,24 @@ rolling_ews <- function(x, time, metrics, window, demean) {
   s2 <- sum(y^2)
   s3 <- sum(y^3)
   s4 <- sum(y^4)
-  s_cur <- s1 - y[1]
+  s_cur <- s1 - y[1L]
   s_lag <- s1 - x[w]
   s_lag2 <- s2 - x[w]^2
-  s_prod <- sum(y[-1] * y[-w])
+  s_prod <- sum(y[-1L] * y[-w])
   mu <- s1 / w
   m2 <- (s2 - s1^2 / w) / w
   m3 <- (s3 - 3 * mu * s2 + 2 * w * mu^3) / w
   m4 <- (s4 - 4 * mu * s3 + 6 * mu^2 * s2 - 3 * w * mu^4) / w
   mu_sq <- (w - 1) * mu^2
-  rolling_ar1[1] <- ifelse_(
+  rolling_ar1[1L] <- ifelse_(
     demean,
     (s_prod - mu * (s_cur + s_lag) + mu_sq) / (s_lag2 - 2 * mu * s_lag + mu_sq),
     s_prod / s_lag2
   )
-  rolling_mean[1] <- mu
-  rolling_var[1] <- m2 * w / (w - 1)
-  rolling_skew[1] <- m3 / (m2^(3/2))
-  rolling_kurt[1] <- m4 / (m2^2)
+  rolling_mean[1L] <- mu
+  rolling_var[1L] <- m2 * w / (w - 1)
+  rolling_skew[1L] <- m3 / (m2^(3/2))
+  rolling_kurt[1L] <- m4 / (m2^2)
   for (i in seq(2, m)) {
     x_new <- x[i + w - 1L]
     x_old <- x[i - 1L]
@@ -132,7 +153,7 @@ rolling_ews <- function(x, time, metrics, window, demean) {
     skew = rolling_skew,
     kurt = rolling_kurt,
     cv = rolling_sd / rolling_mean,
-    rr = 1.0 - rolling_ar1
+    rr = 1 - rolling_ar1
   )
   rolling_metrics <- rolling_metrics[, c("time", metrics)]
   kendall_tau <- apply(rolling_metrics[, -1, drop = FALSE], 2, function(z) {
@@ -164,7 +185,7 @@ rolling_ews <- function(x, time, metrics, window, demean) {
 }
 
 expanding_ews <- function(x, time, metrics, burnin, demean, threshold) {
-  w <- burnin + 1
+  w <- burnin + 1L
   n <- length(x)
   m <- n - w + 1L
   idx <- seq_len(m)
@@ -178,10 +199,10 @@ expanding_ews <- function(x, time, metrics, burnin, demean, threshold) {
   s2 <- sum(y^2)
   s3 <- sum(y^3)
   s4 <- sum(y^4)
-  s_cur <- s1 - y[1]
+  s_cur <- s1 - y[1L]
   s_lag <- s1 - x[w]
   s_lag2 <- s2 - x[w]^2
-  s_prod <- sum(y[-1] * y[-w])
+  s_prod <- sum(y[-1L] * y[-w])
   mu <- s1 / w
   m2  <- (s2 - s1^2 / w) / w
   m3  <- (s3 - 3 * mu * s2 + 2 * w * mu^3) / w
@@ -232,13 +253,13 @@ expanding_ews <- function(x, time, metrics, burnin, demean, threshold) {
     skew = expanding_skew,
     kurt = expanding_kurt,
     cv = expanding_sd / expanding_mean,
-    rr = 1.0 - expanding_ar1
+    rr = 1 - expanding_ar1
   )
   expanding_metrics <- expanding_metrics[, c("time", metrics)]
-  signs <- rep(1.0, ncol(expanding_metrics) - 1)
+  signs <- rep(1, ncol(expanding_metrics) - 1)
   names(signs) <- names(expanding_metrics[-1])
   if ("rr" %in% names(signs)) {
-    signs["rr"] <- -1.0
+    signs["rr"] <- -1
   }
   long <- tidyr::pivot_longer(
     expanding_metrics,
@@ -251,10 +272,7 @@ expanding_ews <- function(x, time, metrics, burnin, demean, threshold) {
       z_score = expanding_z(!!rlang::sym("score")),
       crossed = !!rlang::sym("z_score") *
         signs[!!rlang::sym("metric")] > threshold,
-      detected = factor(
-        as.integer(crossed & dplyr::lag(crossed)),
-        levels = c(1, 0)
-      )
+      detected = as.integer(crossed & dplyr::lag(crossed))
     ) |>
     dplyr::ungroup()
   structure(
@@ -337,10 +355,10 @@ classify_ews <- function(x) {
     dplyr::filter(!is.na(!!rlang::sym("z_score"))) |>
     dplyr::group_by(!!rlang::sym("time")) |>
     dplyr::summarize(
-      time = !!rlang::sym("time"),
-      count = sum(as.integer(!!rlang::sym("detected")))
+      time = (!!rlang::sym("time"))[1],
+      count = sum(!!rlang::sym("detected"))
     )
-  if (n_metrics == 1) {
+  if (n_metrics == 1L) {
    d$state <- cut(
       d$count,
       breaks = c(-Inf, 0, 1, Inf),

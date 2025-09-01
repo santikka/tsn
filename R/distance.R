@@ -17,8 +17,8 @@ distance_matrix <- function(values, measure = "euclidean", window,
   dist_mat <- matrix(Inf, n_windows, n_windows)
   diag(dist_mat) <- 0.0
   if (pairwise) {
-    for (i in 1L:(n_windows - 1L)) {
-      for (j in (i + 1L):n_windows) {
+    for (i in 1:(n_windows - 1L)) {
+      for (j in (i + 1):n_windows) {
         dist_mat[i, j] <- calculate_distance(
           windows[[i]],
           windows[[j]],
@@ -89,7 +89,7 @@ generate_windows <- function(values, window, step) {
     w <- w + step
   }
   if (partial) {
-    windows[[m + 1L]] <- values[(n - step):n]
+    windows[[m + 1]] <- values[(n - step):n]
   }
   windows
 }

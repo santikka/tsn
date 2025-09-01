@@ -229,7 +229,7 @@ discretization_funs$width <- function(x, n_states, ...) {
   r <- range(x)
   k <- n_states + 1L
   breaks <- seq(r[1], r[2], length.out = k)
-  breaks[1L] <- breaks[1L] - 1.0
+  breaks[1] <- breaks[1] - 1.0
   breaks[k] <- breaks[k] + 1.0
   list(
     states = cut(x, breaks = breaks, labels = FALSE, include.lowest = TRUE),
@@ -241,7 +241,7 @@ discretization_funs$quantile <- function(x, n_states, ...) {
   k <- n_states + 1L
   probs <- seq(0, 1, length.out = k)
   breaks <- stats::quantile(x, probs = probs)
-  breaks[1L] <- breaks[1L] - 1.0
+  breaks[1] <- breaks[1] - 1.0
   breaks[k] <- breaks[k] + 1.0
   list(
     states = cut(x, breaks = breaks, labels = FALSE, include.lowest = TRUE),
@@ -264,8 +264,8 @@ discretization_funs$kde <- function(x, n_states, ...) {
   findpeaks_args$npeaks <- n_states - 1L
   findpeaks_args$x <- -dens$y
   valleys <- do.call(pracma::findpeaks, args = findpeaks_args)
-  breaks <- sort(unique(dens$x[valleys[, 2L]]))
-  breaks <- c(min(x) - 1.0, breaks, max(x) + 1.0)
+  breaks <- sort(unique(dens$x[valleys[, 2]]))
+  breaks <- c(min(x) - 1, breaks, max(x) + 1)
   list(
     states = cut(x, breaks = breaks, labels = FALSE, include.lowest = TRUE),
     output = breaks

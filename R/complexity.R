@@ -106,14 +106,14 @@ complexity <- function(data, measures = "complexity", window = 7L,
 
 complexity_funs <- list(
   fluctuation = function(x, scale) {
-    f_max <- scale[2L] - scale[1L]
+    f_max <- scale[2] - scale[1]
     f_obs <- rmsqd(x)
     max(0, min(1, f_obs / f_max))
   },
   distribution = function(x, scale) {
     x <- x[!is.na(x)]
     n <- length(x)
-    uniform <- seq(from = scale[1L], to = scale[2L], length.out = n)
+    uniform <- seq(from = scale[1], to = scale[2], length.out = n)
     empirical <- sort(x)
     uni_diff <- diff(uniform)
     emp_diff <- diff(empirical)
@@ -126,7 +126,7 @@ complexity_funs <- list(
   },
   autocorrelation = function(x, ...) {
     x <- x[!is.na(x)]
-    stats::acf(x, lag.max = 1L, plot = FALSE, na.action = na.pass)$acf[2L]
+    stats::acf(x, lag.max = 1, plot = FALSE, na.action = na.pass)$acf[2]
   },
   max = function(x, ...) min(x, na.rm = TRUE),
   min = function(x, ...) min(x, na.rm = TRUE),
