@@ -12,8 +12,10 @@ detect_warnings(
   metrics = "all",
   window = 50,
   burnin = 30,
+  demean = TRUE,
   detrend = "none",
   threshold = 2,
+  consecutive = 2L,
   bandwidth,
   span,
   degree,
@@ -21,31 +23,75 @@ detect_warnings(
 )
 }
 \arguments{
-\item{data}{A numeric vector or a data frame.}
+\item{data}{A \code{data.frame} that contains the time series data and time
+points.}
 
-\item{ts_col}{Character. The name of the value column (if \code{data} is a data frame).}
+\item{ts_col}{A \code{character} string naming the column for the actual
+time series data values.}
 
-\item{time_col}{Character. The name of the time column (if \code{data} is a data frame).}
+\item{time_col}{A \code{character} string naming the column for the time points.}
 
-\item{method}{Character. The analysis method: \code{"rolling"} or \code{"expanding"}.}
+\item{method}{A \code{character} string for the analysis method.
+Either \code{"rolling"} or \code{"expanding"} for rolling window and expanding window,
+respectively.}
 
-\item{metrics}{Character vector. EWS metrics to calculate. Default: \code{"all"}.}
+\item{metrics}{A \code{character} vector for the EWS metrics to compute.
+The default is \code{"all"} computing all metrics. The available options are:
+\itemize{
+\item \verb{"ar1}: The autoregressive coefficient of an AR1 model.
+\item \code{"sd"}: Standard deviation.
+\item \code{"skew"}: Skewness.
+\item \code{"kurt"}: Kurtosis.
+\item \code{"cv"}: Coefficient of variation.
+\item \code{"rr"}: Return rate (\code{1 - ar1}).
+\item \code{"all"}: All of the above.
+}}
 
-\item{window}{Integer (percentage). Window size for the rolling method.}
+\item{window}{A \code{numeric} value (percentage) for the window size of
+the rolling window method.}
 
-\item{burnin}{Integer. Burn-in period for the expanding method.}
+\item{burnin}{An \code{integer} for the burn-in period of the expanding method.}
 
-\item{detrend}{TODO}
+\item{demean}{A \code{logical} value. If \code{TRUE} (the default), the \code{"ar1"}
+metric will be based on an AR1 model where the mean of the observations
+is first subtracted. See \code{\link[stats:ar.ols]{stats::ar.ols()}} for details.}
 
-\item{threshold}{Numeric. For \code{expanding}, the Z-score threshold. For \code{rolling},
-the Kendall Tau threshold for a strong signal. Defaults are \code{2} and \code{0.7}.}
+\item{detrend}{A \code{character} string naming a detrending method to apply to
+the time series before computing the metrics. The default is \code{"none"} for
+no detrending. The available options are:
+\itemize{
+\item \code{"gaussian"}: Estimates a smooth curve via kernel-based regression
+using \code{\link[stats:ksmooth]{stats::ksmooth()}} with a Gaussian kernel which is then subtracted
+from the time series.
+\item \code{"loess"}: Estimates a smooth curve via local polynomial regression
+using \code{\link[stats:loess]{stats::loess()}} which is then subtracted from the time series.
+\item \code{"linear"}: Fits a linear regression model via \code{\link[stats:lm]{stats::lm()}} and uses
+the residuals for computing the metrics.
+\item \code{"first-diff"}: Uses the differences between the time series and its
+first-order lagged values.
+\item \code{"none"}: Use the original time series data.
+}}
 
-\item{tail.direction}{Character. Test direction for the expanding method.}
+\item{threshold}{A \code{numeric} value giving the z-score threshold for the
+expanding window method.}
+
+\item{consecutive}{An \code{integer} specifying how many times the \code{threshold}
+has to be crossed consecutively to be counted as a detection. The default
+is \code{2}.}
+
+\item{bandwidth}{See \code{\link[stats:ksmooth]{stats::ksmooth()}}.}
+
+\item{span}{See \code{\link[stats:loess]{stats::loess()}}.}
+
+\item{degree}{See \link[stats:loess]{stats::loess}.}
 }
 \value{
-An object of class \code{detect_warning} containing the EWS results,
-parameters, original data, and a summary.
+An object of class \code{tsn_ews} containing the EWS results as a
+\code{tibble}.
 }
 \description{
 Detect Early Warning Signals in a Time Series
+}
+\examples{
+# TODO
 }

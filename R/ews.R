@@ -22,7 +22,7 @@
 #'
 #' @param window A `numeric` value (percentage) for the window size of
 #' the rolling window method.
-#' @param burnin Integer. Burn-in period for the expanding method.
+#' @param burnin An `integer` for the burn-in period of the expanding method.
 #' @param demean A `logical` value. If `TRUE` (the default), the `"ar1"`
 #' metric will be based on an AR1 model where the mean of the observations
 #' is first subtracted. See [stats::ar.ols()] for details.
@@ -30,24 +30,34 @@
 #' the time series before computing the metrics. The default is `"none"` for
 #' no detrending. The available options are:
 #'
-#'   * `"gaussian"`: Kernel-based regression smoothing with a Gaussian kernel
-#'     via [stats::ksmooth()].
-#'   * `"loess"`: Local polynomial regression via [stats::loess()].
-#'   * `"linear"`: Linear regression via [stats::lm()].
-#'   * `"first-diff"`: For first differences.
+#'   * `"gaussian"`: Estimates a smooth curve via kernel-based regression
+#'     using [stats::ksmooth()] with a Gaussian kernel which is then subtracted
+#'     from the time series.
+#'   * `"loess"`: Estimates a smooth curve via local polynomial regression
+#'     using [stats::loess()] which is then subtracted from the time series.
+#'   * `"linear"`: Fits a linear regression model via [stats::lm()] and uses
+#'     the residuals for computing the metrics.
+#'   * `"first-diff"`: Uses the differences between the time series and its
+#'     first-order lagged values.
 #'   * `"none"`: Use the original time series data.
 #'
 #' @param threshold A `numeric` value giving the z-score threshold for the
 #' expanding window method.
+#' @param consecutive An `integer` specifying how many times the `threshold`
+#' has to be crossed consecutively to be counted as a detection. The default
+#' is `2`.
 #' @param bandwidth See [stats::ksmooth()].
 #' @param span See [stats::loess()].
 #' @param degree See [stats::loess].
-#' @return An object of class `detect_warning` containing the EWS results,
-#'   parameters, original data, and a summary.
+#' @return An object of class `tsn_ews` containing the EWS results as a
+#' `tibble`.
+#' @examples
+#' # TODO
 detect_warnings <- function(data, ts_col, time_col, method = "rolling",
                             metrics = "all", window = 50, burnin = 30,
                             demean = TRUE, detrend = "none",
-                            threshold = 2, bandwidth, span, degree, ...) {
+                            threshold = 2, consecutive = 2L,
+                            bandwidth, span, degree, ...) {
   data <- as_tsn(data[[ts_col]], data[[time_col]])
   values <- get_values(data)
   time <- get_time(data)
@@ -59,13 +69,10 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
     c(available_metrics, "all"),
     several.ok = TRUE
   )
-  metrics <- ifelse_(
-    "all" %in% metrics,
-    available_metrics,
-    metrics
-  )
+  metrics <- ifelse_("all" %in% metrics, available_metrics, metrics)
   check_range(window, min = 0.0, max = 100.0)
   check_range(burnin, min = 0.0, max = 100.0)
+  check_values(consecutive, strict = TRUE)
   check_flag(demean)
   detrend <- check_match(
     detrend,
@@ -79,7 +86,7 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
   ifelse_(
     method == "rolling",
     rolling_ews(values, time, metrics, window, demean),
-    expanding_ews(values, time, metrics, burnin, demean, threshold)
+    expanding_ews(values, time, metrics, burnin, demean, threshold, consecutive)
   )
 }
 
@@ -184,7 +191,8 @@ rolling_ews <- function(x, time, metrics, window, demean) {
   )
 }
 
-expanding_ews <- function(x, time, metrics, burnin, demean, threshold) {
+expanding_ews <- function(x, time, metrics, burnin, demean,
+                          threshold, consecutive) {
   w <- burnin + 1L
   n <- length(x)
   m <- n - w + 1L
@@ -270,9 +278,13 @@ expanding_ews <- function(x, time, metrics, burnin, demean, threshold) {
     dplyr::group_by(!!rlang::sym("metric")) |>
     dplyr::mutate(
       z_score = expanding_z(!!rlang::sym("score")),
-      crossed = !!rlang::sym("z_score") *
-        signs[!!rlang::sym("metric")] > threshold,
-      detected = as.integer(crossed & dplyr::lag(crossed))
+      detected = as.integer(
+        check_lags(
+          !!rlang::sym("z_score") * signs[!!rlang::sym("metric")],
+          threshold,
+          consecutive
+        )
+      )
     ) |>
     dplyr::ungroup()
   structure(
@@ -283,6 +295,18 @@ expanding_ews <- function(x, time, metrics, burnin, demean, threshold) {
     method = "expanding",
     class = c("tsn_ews", "tbl_df", "tbl", "data.frame")
   )
+}
+
+check_lags <- function(x, threshold, consecutive) {
+  n <- length(x)
+  lagged <- vapply(
+    0:(consecutive - 1L),
+    function(k) {
+      c(rep(NA, k), x[1:(n - k)])
+    },
+    numeric(n)
+  )
+  apply(lagged, 1L, function(row) all(row > threshold, na.rm = FALSE))
 }
 
 expanding_z <- function(x) {
