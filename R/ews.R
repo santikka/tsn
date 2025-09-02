@@ -58,7 +58,13 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
                             demean = TRUE, detrend = "none",
                             threshold = 2, consecutive = 2L,
                             bandwidth, span, degree, ...) {
-  data <- as_tsn(data[[ts_col]], data[[time_col]])
+  # TODO check columns
+  time <- ifelse_(
+    missing(time_col),
+    seq_len(nrow(data)),
+    data[[time_col]]
+  )
+  data <- as_tsn(data[[ts_col]], time)
   values <- get_values(data)
   time <- get_time(data)
   method <- check_match(method, c("rolling", "expanding"))
@@ -292,21 +298,10 @@ expanding_ews <- function(x, time, metrics, burnin, demean,
     orig_values = x,
     orig_time = time,
     threshold = threshold,
+    classification = classify_ews(long),
     method = "expanding",
     class = c("tsn_ews", "tbl_df", "tbl", "data.frame")
   )
-}
-
-check_lags <- function(x, threshold, consecutive) {
-  n <- length(x)
-  lagged <- vapply(
-    0:(consecutive - 1L),
-    function(k) {
-      c(rep(NA, k), x[1:(n - k)])
-    },
-    numeric(n)
-  )
-  apply(lagged, 1L, function(row) all(row > threshold, na.rm = FALSE))
 }
 
 expanding_z <- function(x) {
@@ -366,6 +361,18 @@ detrend_ts <- function(values, time, method, window, bandwith, span, degree) {
   )
 }
 
+check_lags <- function(x, threshold, consecutive) {
+  n <- length(x)
+  lagged <- vapply(
+    0:(consecutive - 1L),
+    function(k) {
+      c(rep(NA, k), x[1:(n - k)])
+    },
+    numeric(n)
+  )
+  apply(lagged, 1L, function(row) all(row > threshold, na.rm = FALSE))
+}
+
 #' Analyzes the expanding window EWS results to classify the system
 #' state at each time point based on the number of metrics showing warnings.
 #' This provides a qualitative assessment of system stability.
@@ -386,14 +393,14 @@ classify_ews <- function(x) {
    d$state <- cut(
       d$count,
       breaks = c(-Inf, 0, 1, Inf),
-      labels = c("Stable", "Warning", "Critical"),
+      labels = c("Stable", "Warning", "Failing"),
       right = TRUE
     )
   } else if (n_metrics <= 3) {
     d$state <- cut(
       d$count,
       breaks = c(-Inf, 0, 1, n_metrics, Inf),
-      labels = c("Stable", "Vulnerable", "Warning", "Critical"),
+      labels = c("Stable", "Vulnerable", "Warning", "Failing"),
       right = TRUE
     )
   } else {
@@ -401,7 +408,7 @@ classify_ews <- function(x) {
       d$count,
       breaks = c(-Inf, 0, 1, 2, 0.5 * n_metrics, Inf),
       labels = c(
-        "Stable", "Vulnerable", "Weak Warning", "Strong Warning", "Failing"
+        "Stable", "Vulnerable", "Warning", "Critical", "Failing"
       ),
       right = TRUE
     )

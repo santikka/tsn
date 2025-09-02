@@ -183,7 +183,7 @@ plot.tsn_ews <- function(x, ...) {
     patchwork::wrap_plots(p_ts, p_metrics, ncol = 1L)
   } else {
     warn <- data.frame(time = x$time[x$detected == 1])
-    cls <- classify_ews(x)
+
     p_ts <- p_ts +
       ggplot2::geom_rug(
         data = warn,
@@ -224,7 +224,7 @@ plot.tsn_ews <- function(x, ...) {
         )
       )
     p_metrics <- plot_expanding_ews(x)
-    p_cls <- plot_classification(cls)
+    p_cls <- plot_classification(attr(x, "classification"))
     patchwork::wrap_plots(
       p_ts, p_metrics, p_cls, ncol = 1L, heights = c(4, 8, 1)
     )
@@ -365,14 +365,21 @@ plot_expanding_ews <- function(x) {
 }
 
 plot_classification <- function(x) {
+  # state_colors <- c(
+  #   "Stable" = "#440154FF",
+  #   "Vulnerable" = "#3B528BFF",
+  #   "Weak Warning" = "#21908CFF",
+  #   "Strong Warning" = "#5DC863FF",
+  #   "Failing" = "#FDE725FF",
+  #   "Warning" = "orange",
+  #   "Critical" = "red"
+  # )
   state_colors <- c(
-    "Stable" = "#440154FF",
-    "Vulnerable" = "#3B528BFF",
-    "Weak Warning" = "#21908CFF",
-    "Strong Warning" = "#5DC863FF",
-    "Failing" = "#FDE725FF",
-    "Warning" = "orange",
-    "Critical" = "red"
+    `Stable` = "#440154FF",
+    `Vulnerable` = "#3B528BFF",
+    `Warning` = "#5DC863FF",
+    `Critical` = "#FDE725FF",
+    `Failing` = "orange"
   )
   x$state <- factor(x$state, levels = names(state_colors))
   ggplot2::ggplot(x, ggplot2::aes(x = !!rlang::sym("time"), y = 1)) +
