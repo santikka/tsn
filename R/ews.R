@@ -88,7 +88,7 @@ detect_warnings <- function(data, ts_col, time_col, method = "rolling",
   bandwidth <- bandwidth %m% round(window / 2)
   span <- span %m% 0.25
   degree <- degree %m% 2
-  values <- detrend_ts(values, time, detrend, window, ...)
+  values <- detrend_ts(values, time, detrend, window, bandwidth, span, degree)
   ifelse_(
     method == "rolling",
     rolling_ews(values, time, metrics, window, demean),
@@ -327,12 +327,12 @@ expanding_z <- function(x) {
   c(0, cent[-1] / sqrt(var[-1]))
 }
 
-detrend_ts <- function(values, time, method, window, bandwith, span, degree) {
+detrend_ts <- function(values, time, method, window, bandwidth, span, degree) {
   switch(method,
     `gaussian` = {
       smoothed <- stats::ksmooth(
         x = time,
-        y = value,
+        y = values,
         kernel = "normal",
         bandwidth = bandwidth,
         x.points = time
