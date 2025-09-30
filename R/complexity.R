@@ -9,7 +9,7 @@
 #' @param measures \[`character()`]\cr A vector of measures to calculate. The
 #'   available options are: `"complexity"`, `"fluctuation"`, `"distribution"`,
 #'   `"autocorrelation"`, `"max"`, `"min"`, `"variance"`, `"all"`.
-#'   The default is "complexity". See 'Details' for more information on these
+#'   The default is `"complexity"`. See 'Details' for more information on these
 #'   measures.
 #' @param window \[`integer(1)`]\cr A positive integer specifying the rolling
 #'   window size. Must be at least 2. The default is 7.
@@ -75,14 +75,14 @@ complexity <- function(data, measures = "complexity", window = 7L,
   for (measure in measures) {
     if (measure == "complexity") {
       fluctuation <- out$fluctuation %||% roll(
-        fun = fluctuation_degree,
+        fun = complexity_funs$fluctuation,
         values = values,
         window = window,
         align = align,
         scale = scale
       )
       distribution <- out$distribution %||% roll(
-        fun = distribution_degree,
+        fun = complexity_funs$distribution,
         values = values,
         window = window,
         align = align,
@@ -106,14 +106,14 @@ complexity <- function(data, measures = "complexity", window = 7L,
 
 complexity_funs <- list(
   fluctuation = function(x, scale) {
-    f_max <- scale[2] - scale[1]
+    f_max <- scale[2L] - scale[1L]
     f_obs <- rmsqd(x)
     max(0, min(1, f_obs / f_max))
   },
   distribution = function(x, scale) {
     x <- x[!is.na(x)]
     n <- length(x)
-    uniform <- seq(from = scale[1], to = scale[2], length.out = n)
+    uniform <- seq(from = scale[1L], to = scale[2L], length.out = n)
     empirical <- sort(x)
     uni_diff <- diff(uniform)
     emp_diff <- diff(empirical)
@@ -126,9 +126,9 @@ complexity_funs <- list(
   },
   autocorrelation = function(x, ...) {
     x <- x[!is.na(x)]
-    stats::acf(x, lag.max = 1, plot = FALSE, na.action = na.pass)$acf[2]
+    stats::acf(x, lag.max = 1, plot = FALSE, na.action = na.pass)$acf[2L]
   },
-  max = function(x, ...) min(x, na.rm = TRUE),
   min = function(x, ...) min(x, na.rm = TRUE),
+  max = function(x, ...) max(x, na.rm = TRUE),
   variance = function(x, ...) stats::var(x, na.rm = TRUE)
 )
