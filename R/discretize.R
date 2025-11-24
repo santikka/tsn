@@ -5,15 +5,14 @@
 #' mixtures, K-means clustering and kernel density based binning.
 #'
 #' @export
-#' @param data \[`data.frame`, `ts`, `tsn`, `numeric()`]\cr Either time-series
-#'   data in long format (`data.frame`, `tsn`), a time-series object (`ts`), or
-#'   a vector of values.
+#' @param x \[`data.frame`, `ts`, `tsn`]\cr Either a time-series data object in
+#'   long format (`data.frame`, `tsn`) or a time-series object (`ts`).
 #' @param id_col \[`character(1)`]\cr The name of the column that contains
 #'   the unique identifiers.
+#' @param time_col \[`character(1)`]\cr The name of the column that contains
+#'   the time values (not required if the data is already in order).
 #' @param value_col \[`character(1)`]\cr The name of the column that contains
 #'   the data values.
-#' @param order_col \[`character(1)`]\cr The name of the column that contains
-#'   the time values (not required if the data is already in order),
 #' @param n_states \[`integer(1)`]\cr The number of states to discretize the
 #'   data into.
 #' @param method \[`character(1)`]\cr The name of the discretization method to
@@ -35,7 +34,8 @@
 #'   ([stats::kmeans()] for `kmeans`, [stats::density()] and
 #'   [pracma::findpeaks()] for `kde`, and
 #'   [mclust::Mclust()] for `gaussian`).
-#' @return TODO
+#' @return A `tsn` object which is a `data.frame` containing the original
+#'   time series data and the discretized sequence of states.
 #' @importFrom mclust Mclust
 #' @importFrom mclust mclustBIC
 #' @examples
@@ -49,30 +49,51 @@
 #'     )
 #'   )
 #' )
-#' data <- discretize(ts_data, "id", "series", n_states = 3)
+#'
+#' discr <- discretize(
+#'   ts_data, id_col = "id", value_col = "series", n_states = 3
+#' )
 #'
 #' # Time-series data
-#' data <- discretize(EuStockMarkets, n_states = 3)
+#' discr2 <- discretize(EuStockMarkets, n_states = 3)
 #'
-discretize <- function(data, n_states, labels = 1:n_states,
-                       method = "kmeans", unused_fn = dplyr::first, ...) {
+discretize <- function(x, ...) {
   UseMethod("discretize")
 }
 
 #' @export
 #' @rdname discretize
-discretize.ts <- function(data, n_states, labels = 1:n_states,
-                          method = "kmeans", unused_fn = dplyr::first, ...) {
-  df <- data.frame(
-    series = 1L,
-    value = as.numeric(data),
-    time = stats::time(data)
-  )
-  discretize(
-    df,
-    id_col = "series",
-    value_col = "value",
-    order_col = "time",
+discretize.default <- function(x, ...) {
+  df <- data.frame(value = as.numeric(x), id = 1L, time = seq_along(x))
+  discretize(x = tsn(df, "value", "id", "time"), ...)
+}
+
+#' @export
+#' @rdname discretize
+discretize.ts <- function(x, ...) {
+  df <- data.frame(value = as.numeric(x), id = 1L, time = stats::time(x))
+  discretize(x = tsn(df, "value", "id", "time"), ...)
+}
+
+#' @export
+#' @rdname discretize
+discretize.tsn <- function(x, ...) {
+  discretize_(x, ...)
+}
+
+#' @export
+#' @rdname discretize
+discretize.data.frame <- function(x, value_col, id_col, time_col, n_states,
+                                  labels = 1:n_states, method = "kmeans",
+                                  unused_fn = dplyr::first, ...) {
+  check_missing(x)
+  check_missing(value_col)
+  check_class(x, "data.frame")
+  check_string(value_col)
+  check_string(id_col)
+  check_string(time_col)
+  discretize_(
+    x = tsn(x, value_col, id_col, time_col),
     n_states = n_states,
     labels = labels,
     method = method,
@@ -81,16 +102,8 @@ discretize.ts <- function(data, n_states, labels = 1:n_states,
   )
 }
 
-#' @export
-#' @rdname discretize
-discretize.default <- function(data, id_col, value_col, order_col, n_states,
-                               labels = 1:n_states, method = "kmeans",
-                               unused_fn = dplyr::first, ...) {
-  check_missing(data)
-  check_missing(value_col)
-  check_class(data, "data.frame")
-  check_string(id_col)
-  check_string(value_col)
+discretize_ <- function(x, n_states, labels = 1:n_states, method = "kmeans",
+                        unused_fn = dplyr::first, ...) {
   labels <- try_(as.character(labels))
   stopifnot_(
     checkmate::test_character(
@@ -112,114 +125,22 @@ discretize.default <- function(data, id_col, value_col, order_col, n_states,
     (same as {.arg n_states})."
   )
   method <- check_match(method, names(discretization_funs))
-  cols_req <- c(
-    value_col,
-    onlyif(!missing(id_col), id_col),
-    onlyif(!missing(order_col), order_col)
-  )
-  check_cols(cols_req, names(data))
-  if (missing(id_col)) {
-    id_col <- ".id"
-    data$.id <- 1L
-  }
-  complete <- stats::complete.cases(data[, c(id_col, value_col)])
-  values <- data[[value_col]][complete]
+  complete <- stats::complete.cases(x[, c("id", "value")])
+  values <- x$value[complete]
   # TODO warn if number of states is less than n_states
   discretized <- discretization_funs[[method]](values, n_states, ...)
   states <- discretized$states
   output <- discretized$output
-  state_col <- paste0(value_col, "_state")
-  data[[state_col]] <- NA
-  data[[state_col]][complete] <- states
-  data[[state_col]] <- factor(
-    data[[state_col]],
+  x$state <- NA
+  x$state[complete] <- states
+  x$state <- factor(
+    x$state,
     levels = seq_len(n_states),
     labels = labels
   )
-  # stats <- compute_state_statistics(data, id_col, value_col, state_col)
-  data <- data |>
-    dplyr::group_by(!!rlang::sym(id_col))
-  if (missing(order_col)) {
-     data <- data |>
-      dplyr::mutate(.time = dplyr::row_number()) |>
-      dplyr::ungroup() |>
-      dplyr::arrange(!!rlang::sym(id_col), .time)
-  } else {
-    data <- data |>
-      dplyr::arrange(!!rlang::sym(id_col), !!rlang::sym(order_col)) |>
-      dplyr::mutate(.time = dplyr::row_number()) |>
-      dplyr::ungroup()
-  }
-  # wide_data <- tidyr::pivot_wider(
-  #   timed_data,
-  #   id_cols = !!rlang::sym(id_col),
-  #   names_from = !!rlang::sym(".time"),
-  #   names_prefix = "T",
-  #   values_from = !!rlang::sym(state_col),
-  #   unused_fn = unused_fn
-  # )
-  # data$.id <- NULL
-  # wide_data$.id <- NULL
-  # time_cols <- grepl("^T[0-9]+$", names(wide_data), perl = TRUE)
-  # sequence_data <- wide_data[, time_cols]
-  # meta_data <- wide_data[, !time_cols]
-  structure(
-    data,
-    id_col = id_col,
-    value_col = value_col,
-    state_col = state_col,
-    time_col = ifelse_(missing(order_col), ".time", order_col),
-    output = output,
-    class = c("tsn", "data.frame")
-  )
+  attr(x, "output") <- output
+  x
 }
-
-# #' Calculate comprehensive statistics for states
-# #'
-# #' @inheritParams prepare_ts
-# #' @param state_col A `character` string naming the column that contains the
-# #' state information.
-# #' @return A `list` of global and local statistics.
-# #' @noRd
-# compute_state_statistics <- function(data, id_col, value_col, state_col) {
-#   # For R CMD Check
-#   group_size_ <- NULL
-#   global <- data |>
-#     dplyr::group_by(!!rlang::sym(state_col)) |>
-#     dplyr::summarize(
-#       freq = dplyr::n(),
-#       prop = dplyr::n() / nrow(data),
-#       mean = mean(!!rlang::sym(value_col)),
-#       median = stats::median(!!rlang::sym(value_col)),
-#       sd = stats::sd(!!rlang::sym(value_col)),
-#       min = min(!!rlang::sym(value_col)),
-#       max = max(!!rlang::sym(value_col)),
-#       q25 = unname(stats::quantile(!!rlang::sym(value_col), 0.25)),
-#       q75 = unname(stats::quantile(!!rlang::sym(value_col), 0.75)),
-#     )
-#   if (id_col == ".id") {
-#     local <- global
-#   } else {
-#     local <- data |>
-#       dplyr::group_by(!!rlang::sym(id_col)) |>
-#       dplyr::mutate(
-#         group_size_ = dplyr::n()
-#       ) |>
-#       dplyr::group_by(!!rlang::sym(id_col), !!rlang::sym(state_col)) |>
-#       dplyr::summarize(
-#         freq = dplyr::n(),
-#         prop = dplyr::n() / dplyr::first(group_size_),
-#         mean = mean(!!rlang::sym(value_col)),
-#         median = stats::median(!!rlang::sym(value_col)),
-#         sd = stats::sd(!!rlang::sym(value_col)),
-#         min = min(!!rlang::sym(value_col)),
-#         max = max(!!rlang::sym(value_col)),
-#         q25 = unname(stats::quantile(!!rlang::sym(value_col), 0.25)),
-#         q75 = unname(stats::quantile(!!rlang::sym(value_col), 0.75)),
-#       )
-#   }
-#   list(global = global, local = local)
-# }
 
 # Discretization function wrappers --------------------------------------------
 
@@ -228,8 +149,8 @@ discretization_funs <- list()
 discretization_funs$width <- function(x, n_states, ...) {
   r <- range(x)
   k <- n_states + 1L
-  breaks <- seq(r[1], r[2], length.out = k)
-  breaks[1] <- breaks[1] - 1.0
+  breaks <- seq(r[1L], r[2L], length.out = k)
+  breaks[1L] <- breaks[1L] - 1.0
   breaks[k] <- breaks[k] + 1.0
   list(
     states = cut(x, breaks = breaks, labels = FALSE, include.lowest = TRUE),
@@ -241,7 +162,7 @@ discretization_funs$quantile <- function(x, n_states, ...) {
   k <- n_states + 1L
   probs <- seq(0, 1, length.out = k)
   breaks <- stats::quantile(x, probs = probs)
-  breaks[1] <- breaks[1] - 1.0
+  breaks[1L] <- breaks[1L] - 1.0
   breaks[k] <- breaks[k] + 1.0
   list(
     states = cut(x, breaks = breaks, labels = FALSE, include.lowest = TRUE),
@@ -264,7 +185,7 @@ discretization_funs$kde <- function(x, n_states, ...) {
   findpeaks_args$npeaks <- n_states - 1L
   findpeaks_args$x <- -dens$y
   valleys <- do.call(pracma::findpeaks, args = findpeaks_args)
-  breaks <- sort(unique(dens$x[valleys[, 2]]))
+  breaks <- sort(unique(dens$x[valleys[, 2L]]))
   breaks <- c(min(x) - 1, breaks, max(x) + 1)
   list(
     states = cut(x, breaks = breaks, labels = FALSE, include.lowest = TRUE),

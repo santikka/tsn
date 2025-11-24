@@ -3,8 +3,8 @@
 
 # tsn: Time-Series Network Analysis
 
-An R package for time series network analysis with a focus on distance
-calculation, network construction, and visualization.
+An R package for time series network analysis with a focus on
+discretization, network transformation, and visualization.
 
 ## Installation
 

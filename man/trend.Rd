@@ -2,10 +2,22 @@
 % Please edit documentation in R/trend.R
 \name{trend}
 \alias{trend}
+\alias{trend.ts}
+\alias{trend.default}
+\alias{trend.data.frame}
+\alias{trend.tsn}
 \title{Compute trend classification based on various metrics}
 \usage{
-trend(
-  data,
+trend(x, ...)
+
+\method{trend}{ts}(x, ...)
+
+\method{trend}{default}(x, ...)
+
+\method{trend}{data.frame}(x, value_col, id_col, time_col, ...)
+
+\method{trend}{tsn}(
+  x,
   window,
   method = "slope",
   slope = "robust",
@@ -16,11 +28,11 @@ trend(
 )
 }
 \arguments{
-\item{data}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
+\item{x}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
 
 \item{window}{[\code{integer(1)}]\cr The window size for metric calculation.
 If missing, uses the following adaptive sizing:
-\code{max(3, min(length(data), round(length(data)/10)))}.}
+\code{max(3, min(length(data), round(length(data) / 10)))}.}
 
 \item{method}{[\code{character(1)}]\cr The method for trend calculation.
 The available options ares: \code{"slope"} (default) and \code{"growth_factor"}.}
@@ -34,7 +46,7 @@ and \code{"kendall"} (Kendall's tau based). Default: \code{"robust"}.}
 \item{epsilon}{[\code{numeric(1)}]\cr A threshold value for defining flat trends
 based on the metric value. For \code{method = "slope"}, values between
 \verb{(-epsilon, +epsilon)} are considered flat. For \code{"growth_factor"}, values
-between \code{(1-epsilon)} and \code{(1+epsilon)} are considered flat.
+between \code{(1 - epsilon)} and \code{(1+epsilon)} are considered flat.
 Default: \code{0.05}.}
 
 \item{turbulence_threshold}{[\code{numeric(1)}]\cr The baseline threshold value
@@ -53,20 +65,20 @@ metric is assigned to the center, rightmost, or leftmost point of the
 window, respectively.}
 }
 \value{
-A \code{tsn} object with an added \code{trend} column for the \code{timeseries}
-data with the following classes: \code{"ascending"}, \code{"descending"}, \code{"flat"},
-\code{"turbulent"}, \code{"Missing_Data"}, or \code{"Initial"}.
+A \code{tsn} object whose \code{series} column is a factor with
+the following classes: \code{"Ascending"}, \code{"Descending"}, \code{"Flat"},
+\code{"Turbulent"}, \code{"Missing Data"}, or \code{"Initial"}.
 }
 \description{
 Calculates rolling metrics for a time series and classifies trends
 as ascending, descending, flat, or turbulent.
 }
 \details{
-Computes rolling metrics. Trend classifications
-("ascending", "descending", "flat") are first determined using \code{epsilon}.
-Then, a "turbulent" classification can override these if the rolling
-volatility of the metric exceeds a dynamically adjusted turbulence threshold.
-For segments initially classified as "flat", this threshold is
+Computes rolling metrics. Trend classifications ("ascending", "descending",
+"flat") are first determined using \code{epsilon}. Then, a "turbulent"
+classification can override these if the rolling volatility of the metric
+exceeds a dynamically adjusted turbulence threshold. For segments initially
+classified as "flat", this threshold is
 \code{turbulence_threshold * flat_to_turbulent_factor},
 making them more stable against reclassification as "turbulent" due to minor
 noise.
@@ -76,9 +88,14 @@ set.seed(123)
 x <- cumsum(rnorm(200)) # Longer series to see more varied trends
 # Using a slightly larger epsilon to catch more "flat" regions
 tr <- trend(
-  x, window = 15, method = "slope",
-  slope = "ols", epsilon = 0.1,
-  turbulence_threshold = 5, flat_to_turbulent_factor = 2
+  x,
+  window = 15,
+  method = "slope",
+  slope = "ols",
+  epsilon = 0.1,
+  turbulence_threshold = 5,
+  flat_to_turbulent_factor = 2
 )
+
 
 }

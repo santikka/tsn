@@ -1,3 +1,40 @@
+tsn <- function(x, value_col, id_col, time_col) {
+  cols_req <- c(
+    value_col,
+    onlyif(!missing(id_col), id_col),
+    onlyif(!missing(time_col), time_col)
+  )
+  check_cols(cols_req, names(x))
+  x <- x[, cols_req, drop = FALSE]
+  if (missing(id_col)) {
+    id_col <- "id"
+    x$id <- 1L
+  }
+  x <- x |>
+    dplyr::group_by(!!rlang::sym(id_col))
+  if (missing(time_col)) {
+    time_col <- "time"
+    x <- x |>
+      dplyr::mutate(time = dplyr::row_number()) |>
+      dplyr::ungroup() |>
+      dplyr::arrange(!!rlang::sym(id_col), !!rlang::sym(time_col))
+  } else {
+    x <- x |>
+      dplyr::arrange(!!rlang::sym(id_col), !!rlang::sym(time_col)) |>
+      dplyr::ungroup()
+  }
+  x <- x |>
+    dplyr::rename(
+      value = !!rlang::sym(value_col),
+      id = !!rlang::sym(id_col),
+      time = !!rlang::sym(time_col)
+    )
+  structure(
+    x,
+    class = c("tsn", "data.frame")
+  )
+}
+
 #' @export
 as.tsn <- function(x) {
   UseMethod("as.tsn")
@@ -40,21 +77,11 @@ as.tsn.default <- function(x) {
 as_tsn <- function(x, time) {
   structure(
     data.frame(
-      series = 1L,
-      time = time,
-      value = x
+      id = 1L,
+      value = x,
+      time = time
     ),
-    id_col = "series",
-    value_col = "value",
-    time_col = "time",
     class = c("tsn", "data.frame")
   )
 }
 
-get_values <- function(x) {
-  x[[attr(x, "value_col")]]
-}
-
-get_time <- function(x) {
-  x[[attr(x, "time_col")]]
-}

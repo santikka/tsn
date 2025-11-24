@@ -1,15 +1,17 @@
 Package: tsn
-Title: Time-Series Network Analysis
+Title: Time Series Network Analysis
 Version: 0.1.0
 Authors@R: c(
-    person("Mohammed", "Saqr", role = "aut"),
     person("Santtu", "Tikka", 
            email = "santtuth@gmail.com", role = c("aut", "cre")),
+    person("Mohammed", "Saqr", role = "aut"),
     person("Sonsoles", "L\u00f3pez-Pernas",  role = "aut")
   )
-Description: Provides functions for time-series network analysis including 
-    distance calculation, network construction, and visualization. Provides 
-    multiple network construction methods.
+Description: Performs time-series discretization and transformation to networks. 
+    Supports discretization of univariate time series data by binning, kernel 
+    density estimation, gaussian mixtures, and k-means among others. Various 
+    methods for distance-based network transformations are supported including 
+    k-nearest neighbors and gaussian kernels.
 License: MIT + file LICENSE
 URL: https://github.com/santikka/tsn/
 BugReports: https://github.com/santikka/tsn/issues/
@@ -30,5 +32,5 @@ Suggests:
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 LazyData: true

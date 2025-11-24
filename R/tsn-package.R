@@ -1,11 +1,13 @@
 #' The `tsn` Package.
 #'
 #' @name tsn-package
-#' @description Provides functions for time-series network analysis including
-#' distance calculation, network construction, and visualization. Provides
-#' multiple network construction methods.
+#' @description Performs time-series discretization and transformation to
+#' networks. Supports discretization of univariate time series data by binning,
+#' kernel density estimation, gaussian mixtures, and k-means among others.
+#' Various methods for distance-based network transformations are supported
+#' including k-nearest neighbors and gaussian kernels.
 #'
-#' @author Mohammed Saqr, Santtu Tikka, Sonsoles López-Pernas
+#' @author Santtu Tikka, Mohammed Saqr, Sonsoles López-Pernas
 #'
 "_PACKAGE"
 

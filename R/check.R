@@ -118,8 +118,6 @@ check_string <- function(x) {
   )
 }
 
-
-
 #' Check that `x` is a non-negative
 #'
 #' @param x An \R object expected to be a `numeric` or `integer`

@@ -3,11 +3,20 @@
 #' Calculates rolling metrics for a time series and classifies trends
 #' as ascending, descending, flat, or turbulent.
 #'
+#' Computes rolling metrics. Trend classifications ("ascending", "descending",
+#' "flat") are first determined using `epsilon`. Then, a "turbulent"
+#' classification can override these if the rolling volatility of the metric
+#' exceeds a dynamically adjusted turbulence threshold. For segments initially
+#' classified as "flat", this threshold is
+#' `turbulence_threshold * flat_to_turbulent_factor`,
+#' making them more stable against reclassification as "turbulent" due to minor
+#' noise.
+#'
 #' @export
-#' @param data \[`tsn`, `ts`, `data.frame`, `numeric()`]\cr Time-series data.
+#' @param x \[`tsn`, `ts`, `data.frame`, `numeric()`]\cr Time-series data.
 #' @param window \[`integer(1)`]\cr The window size for metric calculation.
 #'   If missing, uses the following adaptive sizing:
-#'   `max(3, min(length(data), round(length(data)/10)))`.
+#'   `max(3, min(length(data), round(length(data) / 10)))`.
 #' @param method \[`character(1)`]\cr The method for trend calculation.
 #'   The available options ares: `"slope"` (default) and `"growth_factor"`.
 #' @param slope \[`character(1)`]\cr The method for slope calculation for
@@ -18,7 +27,7 @@
 #' @param epsilon \[`numeric(1)`]\cr A threshold value for defining flat trends
 #'   based on the metric value. For `method = "slope"`, values between
 #'   `(-epsilon, +epsilon)` are considered flat. For `"growth_factor"`, values
-#'   between `(1-epsilon)` and `(1+epsilon)` are considered flat.
+#'   between `(1 - epsilon)` and `(1 + epsilon)` are considered flat.
 #'   Default: `0.05`.
 #' @param turbulence_threshold \[`numeric(1)`]\cr The baseline threshold value
 #'   for classifying a segment as "turbulent". Based on a custom combined
@@ -32,42 +41,77 @@
 #'   options are: `"center"` (default), `"right"`, and `"left"`. The calculated
 #'   metric is assigned to the center, rightmost, or leftmost point of the
 #'   window, respectively.
-#' @return A `tsn` object with an added `trend` column for the `timeseries`
-#'   data with the following classes: `"ascending"`, `"descending"`, `"flat"`,
-#'   `"turbulent"`, `"Missing_Data"`, or `"Initial"`.
-#'
-#' @details Computes rolling metrics. Trend classifications
-#' ("ascending", "descending", "flat") are first determined using `epsilon`.
-#' Then, a "turbulent" classification can override these if the rolling
-#' volatility of the metric exceeds a dynamically adjusted turbulence threshold.
-#' For segments initially classified as "flat", this threshold is
-#' `turbulence_threshold * flat_to_turbulent_factor`,
-#' making them more stable against reclassification as "turbulent" due to minor
-#' noise.
-#'
+#' @return A `tsn` object whose `series` column is a factor with
+#'   the following classes: `"Ascending"`, `"Descending"`, `"Flat"`,
+#'   `"Turbulent"`, `"Missing Data"`, or `"Initial"`.
 #' @examples
 #' set.seed(123)
 #' x <- cumsum(rnorm(200)) # Longer series to see more varied trends
 #' # Using a slightly larger epsilon to catch more "flat" regions
 #' tr <- trend(
-#'   x, window = 15, method = "slope",
-#'   slope = "ols", epsilon = 0.1,
-#'   turbulence_threshold = 5, flat_to_turbulent_factor = 2
+#'   x,
+#'   window = 15,
+#'   method = "slope",
+#'   slope = "ols",
+#'   epsilon = 0.1,
+#'   turbulence_threshold = 5,
+#'   flat_to_turbulent_factor = 2
 #' )
 #'
-trend <- function(data, window, method = "slope", slope = "robust",
-                  epsilon = 0.05, turbulence_threshold = 5,
-                  flat_to_turbulent_factor = 1.5, align = "center") {
-  data <- as.tsn(data)
-  values <- get_values(data)
-  time <- get_time(data)
+trend <- function(x, ...) {
+  UseMethod("trend")
+}
+
+#' @export
+#' @rdname trend
+trend.ts <- function(x, ...) {
+  df <- data.frame(value = as.numeric(x), id = 1L, time = stats::time(x))
+  trend(
+    x = tsn(df, "value", "id", "time"),
+    ...
+  )
+}
+
+#' @rdname trend
+#' @export
+trend.default <- function(x, ...) {
+  df <- data.frame(value = as.numeric(x), id = 1L, time = seq_along(x))
+  trend(
+    x = tsn(df, "value", "id", "time"),
+    ...
+  )
+}
+
+#' @rdname trend
+#' @export
+trend.data.frame <- function(x, value_col, id_col, time_col, ...) {
+  check_missing(x)
+  check_missing(value_col)
+  check_class(x, "data.frame")
+  check_string(value_col)
+  check_string(id_col)
+  check_string(time_col)
+  trend(
+    tsn(x, value_col, id_col, time_col),
+    ...
+  )
+}
+
+#' @rdname trend
+#' @export
+trend.tsn <- function(x, window, method = "slope", slope = "robust",
+                      epsilon = 0.05, turbulence_threshold = 5,
+                      flat_to_turbulent_factor = 1.5, align = "center") {
+  check_missing(x)
+  check_class(x, "tsn")
   method <- check_match(method, c("slope", "growth_factor"))
   slope <- check_match(slope, c("ols", "robust", "spearman", "kendall"))
   align <- check_match(align, c("center", "right", "left"))
   check_values(epsilon, type = "numeric")
   check_values(turbulence_threshold, type = "numeric")
   check_values(flat_to_turbulent_factor, type = "numeric")
-  n <- length(values)
+  ids <- unique(x$id)
+  n <- min(table(x$id))
   window <- ifelse_(missing(window), max(3, min(n, round(n / 10))), window)
   stopifnot_(
     window > 2 && window < n,
@@ -75,70 +119,85 @@ trend <- function(data, window, method = "slope", slope = "robust",
     (the number of observations)."
   )
   window_method <- ifelse_(method == "slope", slope, method)
-  metric_values <- roll(
-    fun = metric_funs[[window_method]],
-    values = values,
-    time = time,
-    window = window,
-    align = align
-  )
-  trend_codes <- rep("Initial", n)
-  values_na <- is.na(values)
-  trend_codes[values_na] <- "Missing_Data"
-  neutral_val <- ifelse_(method == "growth_factor", 1, 0)
-  lower <- neutral_val - epsilon
-  upper <- neutral_val + epsilon
-  valid <- !is.na(metric_values) & !values_na
-  valid_metrics <- metric_values[valid]
-  trend_codes[valid] <- ifelse(
-    valid_metrics > upper,
-    "Ascending",
-    ifelse(
-      valid_metrics < lower,
-      "Descending",
-      "Flat"
+  trend_codes <- character(nrow(x))
+  for (i in seq_along(ids)) {
+    idx <- which(x$id == ids[i])
+    values <- x$value[idx]
+    time <- x$time[idx]
+    n <- length(values)
+    state <- rep("Initial", n)
+    metric_values <- roll(
+      fun = metric_funs[[window_method]],
+      values = values,
+      time = time,
+      window = window,
+      align = align
     )
-  )
-  volatility_window <- min(max(3, window %/% 2), sum(valid))
-  valid_idx <- which(valid)
-  n_valid <- length(valid_metrics)
-  if (n_valid >= volatility_window) {
-    for (i in seq(volatility_window, n_valid)) {
-      window_idx <- seq(i - volatility_window + 1L, i)
-      window_metric <- valid_metrics[window_idx]
-      if (sum(!is.na(window_metric)) < 2L) next
-      metric_sd <- stats::sd(window_metric, na.rm = TRUE)
-      metric_am <- abs(mean(window_metric, na.rm = TRUE))
-      metric_range <- diff(range(window_metric, na.rm = TRUE))
-      if (is.na(metric_sd) || is.na(metric_am) || is.na(metric_range)) next
-      volatility_cv <- metric_sd / metric_am
-      volatility_range_factor <- metric_range / metric_am
-      combined_vol <- volatility_cv + 0.5 * volatility_range_factor
-      j <- valid_idx[i]
-      base_trend <- trend_codes[j]
-      effective_threshold <- ifelse_(
-        base_trend == "Flat",
-        turbulence_threshold * flat_to_turbulent_factor,
-        turbulence_threshold
+    values_na <- is.na(values)
+    state[values_na] <- "Missing Data"
+    neutral_val <- ifelse_(method == "growth_factor", 1, 0)
+    lower <- neutral_val - epsilon
+    upper <- neutral_val + epsilon
+    valid <- !is.na(metric_values) & !values_na
+    valid_metrics <- metric_values[valid]
+    state[valid] <- ifelse(
+      valid_metrics > upper,
+      "Ascending",
+      ifelse(
+        valid_metrics < lower,
+        "Descending",
+        "Flat"
       )
-      if (base_trend != "Missing_Data" && combined_vol > effective_threshold) {
-        trend_codes[j] <- "Turbulent"
+    )
+    volatility_window <- min(max(3, window %/% 2), sum(valid))
+    valid_idx <- which(valid)
+    n_valid <- length(valid_metrics)
+    if (n_valid >= volatility_window) {
+      for (j in seq(volatility_window, n_valid)) {
+        window_idx <- seq(j - volatility_window + 1L, j)
+        window_metric <- valid_metrics[window_idx]
+        if (sum(!is.na(window_metric)) < 2L) {
+          next
+        }
+        metric_sd <- stats::sd(window_metric, na.rm = TRUE)
+        metric_am <- abs(mean(window_metric, na.rm = TRUE))
+        metric_range <- diff(range(window_metric, na.rm = TRUE))
+        if (is.na(metric_sd) ||
+            is.na(metric_am) ||
+            is.na(metric_range) ||
+            metric_sd == 0 || metric_am == 0) {
+          next
+        }
+        volatility_cv <- metric_sd / metric_am
+        volatility_range_factor <- metric_range / metric_am
+        combined_vol <- volatility_cv + 0.5 * volatility_range_factor
+        k <- valid_idx[j]
+        base_trend <- state[k]
+        effective_threshold <- ifelse_(
+          base_trend == "Flat",
+          turbulence_threshold * flat_to_turbulent_factor,
+          turbulence_threshold
+        )
+        if (base_trend != "Missing Data" &&
+            combined_vol > effective_threshold) {
+          state[k] <- "Turbulent"
+        }
       }
     }
+    trend_codes[idx] <- state
   }
-  data$.state <- factor(
+  x$state <- factor(
     trend_codes,
     levels = c(
       "Ascending",
       "Descending",
       "Flat",
       "Turbulent",
-      "Missing_Data",
+      "Missing Data",
       "Initial"
     )
   )
-  attr(data, "state_col") <- ".state"
-  data
+  x
 }
 
 

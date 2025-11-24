@@ -2,33 +2,25 @@
 % Please edit documentation in R/discretize.R
 \name{discretize}
 \alias{discretize}
-\alias{discretize.ts}
 \alias{discretize.default}
+\alias{discretize.ts}
+\alias{discretize.tsn}
+\alias{discretize.data.frame}
 \title{Convert Time-Series Data into Wide Format Sequence Data}
 \usage{
-discretize(
-  data,
-  n_states,
-  labels = 1:n_states,
-  method = "kmeans",
-  unused_fn = dplyr::first,
-  ...
-)
+discretize(x, ...)
 
-\method{discretize}{ts}(
-  data,
-  n_states,
-  labels = 1:n_states,
-  method = "kmeans",
-  unused_fn = dplyr::first,
-  ...
-)
+\method{discretize}{default}(x, ...)
 
-\method{discretize}{default}(
-  data,
-  id_col,
+\method{discretize}{ts}(x, ...)
+
+\method{discretize}{tsn}(x, ...)
+
+\method{discretize}{data.frame}(
+  x,
   value_col,
-  order_col,
+  id_col,
+  time_col,
   n_states,
   labels = 1:n_states,
   method = "kmeans",
@@ -37,9 +29,22 @@ discretize(
 )
 }
 \arguments{
-\item{data}{[\code{data.frame}, \code{ts}, \code{tsn}, \code{numeric()}]\cr Either time-series
-data in long format (\code{data.frame}, \code{tsn}), a time-series object (\code{ts}), or
-a vector of values.}
+\item{x}{[\code{data.frame}, \code{ts}, \code{tsn}]\cr Either a time-series data object in
+long format (\code{data.frame}, \code{tsn}) or a time-series object (\code{ts}).}
+
+\item{...}{Additional arguments passed to the discretization method
+(\code{\link[stats:kmeans]{stats::kmeans()}} for \code{kmeans}, \code{\link[stats:density]{stats::density()}} and
+\code{\link[pracma:findpeaks]{pracma::findpeaks()}} for \code{kde}, and
+\code{\link[mclust:Mclust]{mclust::Mclust()}} for \code{gaussian}).}
+
+\item{value_col}{[\code{character(1)}]\cr The name of the column that contains
+the data values.}
+
+\item{id_col}{[\code{character(1)}]\cr The name of the column that contains
+the unique identifiers.}
+
+\item{time_col}{[\code{character(1)}]\cr The name of the column that contains
+the time values (not required if the data is already in order).}
 
 \item{n_states}{[\code{integer(1)}]\cr The number of states to discretize the
 data into.}
@@ -61,23 +66,10 @@ use.
 \item{unused_fn}{[\code{function}]\cr How to handle extra columns when pivoting
 to wide format. See \code{\link[tidyr:pivot_wider]{tidyr::pivot_wider()}}. The default is to keep all
 columns and to use the first value.}
-
-\item{...}{Additional arguments passed to the discretization method
-(\code{\link[stats:kmeans]{stats::kmeans()}} for \code{kmeans}, \code{\link[stats:density]{stats::density()}} and
-\code{\link[pracma:findpeaks]{pracma::findpeaks()}} for \code{kde}, and
-\code{\link[mclust:Mclust]{mclust::Mclust()}} for \code{gaussian}).}
-
-\item{id_col}{[\code{character(1)}]\cr The name of the column that contains
-the unique identifiers.}
-
-\item{value_col}{[\code{character(1)}]\cr The name of the column that contains
-the data values.}
-
-\item{order_col}{[\code{character(1)}]\cr The name of the column that contains
-the time values (not required if the data is already in order),}
 }
 \value{
-TODO
+A \code{tsn} object which is a \code{data.frame} containing the original
+time series data and the discretized sequence of states.
 }
 \description{
 Converts time-series data into sequence data via discretization.
@@ -95,9 +87,12 @@ ts_data <- data.frame(
     )
   )
 )
-data <- discretize(ts_data, "id", "series", n_states = 3)
+
+discr <- discretize(
+  ts_data, id_col = "id", value_col = "series", n_states = 3
+)
 
 # Time-series data
-data <- discretize(EuStockMarkets, n_states = 3)
+discr2 <- discretize(EuStockMarkets, n_states = 3)
 
 }

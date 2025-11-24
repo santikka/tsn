@@ -2,10 +2,10 @@
 % Please edit documentation in R/network.R
 \name{build_network}
 \alias{build_network}
-\title{Time Series Network Construction}
+\title{Construct a Network from Time Series Data}
 \usage{
 build_network(
-  data,
+  x,
   measure = "euclidean",
   window = 1L,
   step = 1L,
@@ -17,8 +17,6 @@ build_network(
 )
 }
 \arguments{
-\item{data}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
-
 \item{measure}{[\code{character(1)}]\cr The distance measure to use.}
 
 \item{window}{[\code{integer(1)}]\cr Width of the sliding window (default 1).}
@@ -55,12 +53,15 @@ These include:
 \item \code{threshold} Distance threshold (for threshold method)
 \item \code{sigma} Gaussian kernel parameter (for Gaussian method)
 }}
+
+\item{data}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
 }
 \value{
-TODO
+A \code{matrix} representing the adjacency matrix of the constructed
+network.
 }
 \description{
-Build networks from distance matrices using various construction methods
+Build networks from time series data using various construction methods.
 }
 \examples{
 set.seed(123)

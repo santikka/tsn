@@ -6,9 +6,11 @@
 \alias{tsn-package}
 \title{The \code{tsn} Package.}
 \description{
-Provides functions for time-series network analysis including
-distance calculation, network construction, and visualization. Provides
-multiple network construction methods.
+Performs time-series discretization and transformation to
+networks. Supports discretization of univariate time series data by binning,
+kernel density estimation, gaussian mixtures, and k-means among others.
+Various methods for distance-based network transformations are supported
+including k-nearest neighbors and gaussian kernels.
 }
 \seealso{
 Useful links:
@@ -19,5 +21,5 @@ Useful links:
 
 }
 \author{
-Mohammed Saqr, Santtu Tikka, Sonsoles López-Pernas
+Santtu Tikka, Mohammed Saqr, Sonsoles López-Pernas
 }

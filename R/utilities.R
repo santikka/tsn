@@ -32,7 +32,7 @@ roll <- function(fun, values, time, window, align, ...) {
     }
   } else {
     for (i in start:end) {
-      out <- fun(values = values[w], time = time[w], ...)
+      out[i] <- fun(values = values[w], time = time[w], ...)
       w <- w + 1L
     }
   }
