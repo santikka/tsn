@@ -2,14 +2,24 @@
 % Please edit documentation in R/network.R
 \name{build_network}
 \alias{build_network}
+\alias{build_network.default}
+\alias{build_network.data.frame}
+\alias{build_network.tsn}
 \title{Construct a Network from Time Series Data}
 \usage{
-build_network(
+build_network(x, ...)
+
+\method{build_network}{default}(x, ...)
+
+\method{build_network}{data.frame}(x, value_col, id_col, time_col, ...)
+
+\method{build_network}{tsn}(
   x,
   measure = "euclidean",
   window = 1L,
   step = 1L,
   pairwise = TRUE,
+  selected = 1L,
   symmetric = TRUE,
   normalize = FALSE,
   method = "full",
@@ -17,6 +27,26 @@ build_network(
 )
 }
 \arguments{
+\item{x}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
+
+\item{...}{Additional arguments passed to the network construction method.
+These include:
+\itemize{
+\item \code{k} Number of nearest neighbors (for KNN method)
+\item \code{percentile} Percentile threshold (for percentile method)
+\item \code{threshold} Distance threshold (for threshold method)
+\item \code{sigma} Standard deviation parameter (for Gaussian kernel method)
+}}
+
+\item{value_col}{[\code{character(1)}]\cr The name of the column that contains
+the data values.}
+
+\item{id_col}{[\code{character(1)}]\cr The name of the column that contains
+the unique identifiers (optional).}
+
+\item{time_col}{[\code{character(1)}]\cr The name of the column that contains
+the time values (not required if the data is already in order).}
+
 \item{measure}{[\code{character(1)}]\cr The distance measure to use.}
 
 \item{window}{[\code{integer(1)}]\cr Width of the sliding window (default 1).}
@@ -26,6 +56,10 @@ build_network(
 \item{pairwise}{[\code{logical(1)}]\cr If \code{TRUE} (default), calculates all
 pairwise distances between windows. If \code{FALSE}, uses consecutive windows
 only.}
+
+\item{selected}{[\code{integer(1)}, \code{character(1)}]\cr An integer or name of the
+time series to transform into a network (optional). The default is the
+first time series when the data contains multiple individuals.}
 
 \item{symmetric}{[\code{logical(1)}]\cr If \code{TRUE} (default), ensures that the
 distance matrix is symmetric. If \code{FALSE}, keeps edge directions
@@ -44,21 +78,10 @@ The available options are:
 \item \code{"threshold"}: Distance threshold network.
 \item \code{"gaussian"}: Gaussian kernel network.
 }}
-
-\item{...}{Additional arguments passed to the network construction method.
-These include:
-\itemize{
-\item \code{k} Number of nearest neighbors (for KNN method)
-\item \code{percentile} Percentile threshold (for percentile method)
-\item \code{threshold} Distance threshold (for threshold method)
-\item \code{sigma} Gaussian kernel parameter (for Gaussian method)
-}}
-
-\item{data}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
 }
 \value{
-A \code{matrix} representing the adjacency matrix of the constructed
-network.
+An object of class \code{tsn_network} which is a \code{matrix} representing
+the adjacency matrix of the constructed network.
 }
 \description{
 Build networks from time series data using various construction methods.

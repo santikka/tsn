@@ -7,12 +7,12 @@
 #' @export
 #' @param x \[`data.frame`, `ts`, `tsn`]\cr Either a time-series data object in
 #'   long format (`data.frame`, `tsn`) or a time-series object (`ts`).
-#' @param id_col \[`character(1)`]\cr The name of the column that contains
-#'   the unique identifiers.
-#' @param time_col \[`character(1)`]\cr The name of the column that contains
-#'   the time values (not required if the data is already in order).
 #' @param value_col \[`character(1)`]\cr The name of the column that contains
 #'   the data values.
+#' @param id_col \[`character(1)`]\cr The name of the column that contains
+#'   the unique identifiers (optional).
+#' @param time_col \[`character(1)`]\cr The name of the column that contains
+#'   the time values (not required if the data is already in order).
 #' @param n_states \[`integer(1)`]\cr The number of states to discretize the
 #'   data into.
 #' @param method \[`character(1)`]\cr The name of the discretization method to
@@ -64,21 +64,7 @@ discretize <- function(x, ...) {
 #' @export
 #' @rdname discretize
 discretize.default <- function(x, ...) {
-  df <- data.frame(value = as.numeric(x), id = 1L, time = seq_along(x))
-  discretize(x = tsn(df, "value", "id", "time"), ...)
-}
-
-#' @export
-#' @rdname discretize
-discretize.ts <- function(x, ...) {
-  df <- data.frame(value = as.numeric(x), id = 1L, time = stats::time(x))
-  discretize(x = tsn(df, "value", "id", "time"), ...)
-}
-
-#' @export
-#' @rdname discretize
-discretize.tsn <- function(x, ...) {
-  discretize_(x, ...)
+  discretize(x = as.tsn(x), ...)
 }
 
 #' @export
@@ -87,12 +73,7 @@ discretize.data.frame <- function(x, value_col, id_col, time_col, n_states,
                                   labels = 1:n_states, method = "kmeans",
                                   unused_fn = dplyr::first, ...) {
   check_missing(x)
-  check_missing(value_col)
-  check_class(x, "data.frame")
-  check_string(value_col)
-  check_string(id_col)
-  check_string(time_col)
-  discretize_(
+  discretize(
     x = tsn(x, value_col, id_col, time_col),
     n_states = n_states,
     labels = labels,
@@ -102,7 +83,9 @@ discretize.data.frame <- function(x, value_col, id_col, time_col, n_states,
   )
 }
 
-discretize_ <- function(x, n_states, labels = 1:n_states, method = "kmeans",
+#' @export
+#' @rdname discretize
+discretize.tsn <- function(x, n_states, labels = 1:n_states, method = "kmeans",
                         unused_fn = dplyr::first, ...) {
   labels <- try_(as.character(labels))
   stopifnot_(

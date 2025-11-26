@@ -1,4 +1,9 @@
 tsn <- function(x, value_col, id_col, time_col) {
+  check_class(x, "data.frame")
+  check_missing(value_col)
+  check_string(value_col)
+  check_string(id_col)
+  check_string(time_col)
   cols_req <- c(
     value_col,
     onlyif(!missing(id_col), id_col),
@@ -77,11 +82,10 @@ as.tsn.default <- function(x) {
 as_tsn <- function(x, time) {
   structure(
     data.frame(
-      id = 1L,
       value = x,
+      id = 1L,
       time = time
     ),
     class = c("tsn", "data.frame")
   )
 }
-

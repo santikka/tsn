@@ -3,24 +3,28 @@
 \name{discretize}
 \alias{discretize}
 \alias{discretize.default}
-\alias{discretize.ts}
-\alias{discretize.tsn}
 \alias{discretize.data.frame}
+\alias{discretize.tsn}
 \title{Convert Time-Series Data into Wide Format Sequence Data}
 \usage{
 discretize(x, ...)
 
 \method{discretize}{default}(x, ...)
 
-\method{discretize}{ts}(x, ...)
-
-\method{discretize}{tsn}(x, ...)
-
 \method{discretize}{data.frame}(
   x,
   value_col,
   id_col,
   time_col,
+  n_states,
+  labels = 1:n_states,
+  method = "kmeans",
+  unused_fn = dplyr::first,
+  ...
+)
+
+\method{discretize}{tsn}(
+  x,
   n_states,
   labels = 1:n_states,
   method = "kmeans",
@@ -41,7 +45,7 @@ long format (\code{data.frame}, \code{tsn}) or a time-series object (\code{ts}).
 the data values.}
 
 \item{id_col}{[\code{character(1)}]\cr The name of the column that contains
-the unique identifiers.}
+the unique identifiers (optional).}
 
 \item{time_col}{[\code{character(1)}]\cr The name of the column that contains
 the time values (not required if the data is already in order).}

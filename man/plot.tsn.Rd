@@ -18,8 +18,8 @@
 \arguments{
 \item{x}{[\code{tsn}]\cr Time-series data to be plotted.}
 
-\item{selected}{[\code{character()}]\cr A vector of indices or names of
-individual time-series to plot. If not provided (default), all
+\item{selected}{[\code{integer()}, \code{character()}]\cr A vector of indices or
+names of individual time-series to plot. If not provided (default), all
 time-series are plotted up to \code{max_series} number of plots.}
 
 \item{overlay}{[\code{logical(1)}]\cr An option for plotting the overlay

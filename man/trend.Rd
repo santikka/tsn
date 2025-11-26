@@ -2,15 +2,12 @@
 % Please edit documentation in R/trend.R
 \name{trend}
 \alias{trend}
-\alias{trend.ts}
 \alias{trend.default}
 \alias{trend.data.frame}
 \alias{trend.tsn}
 \title{Compute trend classification based on various metrics}
 \usage{
 trend(x, ...)
-
-\method{trend}{ts}(x, ...)
 
 \method{trend}{default}(x, ...)
 
@@ -30,6 +27,20 @@ trend(x, ...)
 \arguments{
 \item{x}{[\code{tsn}, \code{ts}, \code{data.frame}, \code{numeric()}]\cr Time-series data.}
 
+\item{...}{Additional arguments passed to the discretization method
+(\code{\link[stats:kmeans]{stats::kmeans()}} for \code{kmeans}, \code{\link[stats:density]{stats::density()}} and
+\code{\link[pracma:findpeaks]{pracma::findpeaks()}} for \code{kde}, and
+\code{\link[mclust:Mclust]{mclust::Mclust()}} for \code{gaussian}).}
+
+\item{value_col}{[\code{character(1)}]\cr The name of the column that contains
+the data values.}
+
+\item{id_col}{[\code{character(1)}]\cr The name of the column that contains
+the unique identifiers (optional).}
+
+\item{time_col}{[\code{character(1)}]\cr The name of the column that contains
+the time values (not required if the data is already in order).}
+
 \item{window}{[\code{integer(1)}]\cr The window size for metric calculation.
 If missing, uses the following adaptive sizing:
 \code{max(3, min(length(data), round(length(data) / 10)))}.}
@@ -46,7 +57,7 @@ and \code{"kendall"} (Kendall's tau based). Default: \code{"robust"}.}
 \item{epsilon}{[\code{numeric(1)}]\cr A threshold value for defining flat trends
 based on the metric value. For \code{method = "slope"}, values between
 \verb{(-epsilon, +epsilon)} are considered flat. For \code{"growth_factor"}, values
-between \code{(1 - epsilon)} and \code{(1+epsilon)} are considered flat.
+between \code{(1 - epsilon)} and \code{(1 + epsilon)} are considered flat.
 Default: \code{0.05}.}
 
 \item{turbulence_threshold}{[\code{numeric(1)}]\cr The baseline threshold value
@@ -96,6 +107,5 @@ tr <- trend(
   turbulence_threshold = 5,
   flat_to_turbulent_factor = 2
 )
-
 
 }

@@ -3,13 +3,16 @@
 #' Build networks from time series data using various construction methods.
 #'
 #' @export
-#' @param data \[`tsn`, `ts`, `data.frame`, `numeric()`]\cr Time-series data.
+#' @param x \[`tsn`, `ts`, `data.frame`, `numeric()`]\cr Time-series data.
 #' @param measure \[`character(1)`]\cr The distance measure to use.
 #' @param window \[`integer(1)`]\cr Width of the sliding window (default 1).
 #' @param step \[`integer(1)`]\cr Step size for windows (default 1)
 #' @param pairwise \[`logical(1)`]\cr If `TRUE` (default), calculates all
 #'   pairwise distances between windows. If `FALSE`, uses consecutive windows
 #'   only.
+#' @param selected \[`integer(1)`, `character(1)`]\cr An integer or name of the
+#'   time series to transform into a network (optional). The default is the
+#'   first time series when the data contains multiple individuals.
 #' @param symmetric \[`logical(1)`]\cr If `TRUE` (default), ensures that the
 #'   distance matrix is symmetric. If `FALSE`, keeps edge directions
 #'   when `pairwise = FALSE`.
@@ -31,18 +34,37 @@
 #'   * `k` Number of nearest neighbors (for KNN method)
 #'   * `percentile` Percentile threshold (for percentile method)
 #'   * `threshold` Distance threshold (for threshold method)
-#'   * `sigma` Gaussian kernel parameter (for Gaussian method)
+#'   * `sigma` Standard deviation parameter (for Gaussian kernel method)
 #'
-#' @return A `matrix` representing the adjacency matrix of the constructed
-#'   network.
+#' @inheritParams discretize
+#' @return An object of class `tsn_network` which is a `matrix` representing
+#'   the adjacency matrix of the constructed network.
 #' @examples
 #' set.seed(123)
 #' x <- cumsum(rnorm(100))
 #' net <- build_network(x, window = 10, step = 10)
 #'
-build_network <- function(x, measure = "euclidean", window = 1L, step = 1L,
-                          pairwise = TRUE, symmetric = TRUE, normalize = FALSE,
-                          method = "full", ...) {
+build_network <- function(x, ...) {
+  UseMethod("build_network")
+}
+
+#' @export
+#' @rdname build_network
+build_network.default <- function(x, ...) {
+  build_network(x = as.tsn(x), ...)
+}
+
+#' @export
+#' @rdname build_network
+build_network.data.frame <- function(x, value_col, id_col, time_col, ...) {
+  build_network(x = tsn(x, value_col, id_col, time_col), ...)
+}
+
+#' @export
+#' @rdname build_network
+build_network.tsn <- function(x, measure = "euclidean", window = 1L, step = 1L,
+                              pairwise = TRUE, selected = 1L, symmetric = TRUE,
+                              normalize = FALSE, method = "full", ...) {
   check_missing(x)
   measure <- check_match(measure, get_distance_measures())
   method <- check_match(method, get_network_methods())
@@ -52,16 +74,29 @@ build_network <- function(x, measure = "euclidean", window = 1L, step = 1L,
   check_flag(symmetric)
   check_flag(normalize)
   check_network_dots(...)
-  x <- as.tsn(x)
+  stopifnot_(
+    is.numeric(selected) || is.character(selected),
+    "Argument {.arg selected} must be a single integer or a character string."
+  )
+  if (is.numeric(selected)) {
+    selected <- as.integer(selected)[1L]
+    values <- x$value[x$id == x$id[selected]]
+  } else if (is.character(selected)) {
+    selected <- selected[1L]
+    values <- x$value[x$id == selected]
+  }
   dist_mat <- distance_matrix(
-    x$values, measure, window, step, pairwise, symmetric, ...
+    values, measure, window, step, pairwise, symmetric, ...
   )
   if (normalize) {
     max_dist <- max(dist_mat[is.finite(dist_mat)])
     dist_mat <- dist_mat / max_dist
   }
   adj_mat <- network_funs[[method]](dist_mat, ...)
-  adj_mat
+  structure(
+    adj_mat,
+    class = c("tsn_network", "matrix", "array")
+  )
 }
 
 # Methods for building the network based on distances ---------------------

@@ -2,8 +2,8 @@
 #'
 #' @export
 #' @param x \[`tsn`]\cr Time-series data to be plotted.
-#' @param selected \[`character()`]\cr A vector of indices or names of
-#'   individual time-series to plot. If not provided (default), all
+#' @param selected \[`integer()`, `character()`]\cr A vector of indices or
+#'   names of individual time-series to plot. If not provided (default), all
 #'   time-series are plotted up to `max_series` number of plots.
 #' @param overlay \[`logical(1)`]\cr An option for plotting the overlay
 #'   that indicates the state assigned to each time point. Can be either `"h"`
@@ -154,3 +154,25 @@ plot.tsn <- function(x, selected, overlay = "v", points = FALSE,
     ggplot2::labs(x = "Time", y = "Value") +
     ggplot2::theme(legend.position = "bottom")
 }
+
+#' @export
+plot.tsn_network <- function(x, cut, edge.labels = TRUE,
+                             edge.label.position = 0.60, layout = "circle",
+                             layout_args = list(), mar = rep(5, 4),
+                             theme = "colorblind", ...) {
+  check_missing(x)
+  check_class(x, "tsn_network")
+  layout <- check_layout(x, layout = layout, layout_args)
+  cut <- cut %m% stats::median(x, na.rm = TRUE)
+  qgraph::qgraph(
+    input = x,
+    edge.labels = edge.labels,
+    edge.label.position = edge.label.position,
+    layout = layout,
+    theme = theme,
+    cut = cut,
+    mar = mar,
+    ...
+  )
+}
+

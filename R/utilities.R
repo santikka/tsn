@@ -109,6 +109,27 @@ rescale <- function(x, scale) {
     (scale[2] - scale[1]) + scale[1L]
 }
 
+#' @importFrom igraph as.igraph
+#' @export
+igraph::as.igraph
+
+#' Coerce a `tsn_network` Object into an `igraph` Object.
+#'
+#' @export
+#' @inheritParams igraph::graph_from_adjacency_matrix
+#' @param x A `tsn_network` object.
+#' @param ... Ignored.
+#' @return An `igraph` object.
+as.igraph.tsn_network <- function(x, mode = "undirected", ...) {
+  check_missing(x)
+  check_class(x, "tsn_network")
+  igraph::graph_from_adjacency_matrix(
+    adjmatrix = x,
+    mode = mode,
+    weighted = TRUE
+  )
+}
+
 # Functions borrowed from the `dynamite` and `tna` packages -------------------
 
 #' Shorthand for `try(., silent = TRUE)`

@@ -21,6 +21,7 @@ Imports:
     checkmate,
     cli,
     dplyr,
+    qgraph,
     rlang,
     stats,
     tibble,

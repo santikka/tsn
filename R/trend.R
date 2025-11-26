@@ -41,6 +41,7 @@
 #'   options are: `"center"` (default), `"right"`, and `"left"`. The calculated
 #'   metric is assigned to the center, rightmost, or leftmost point of the
 #'   window, respectively.
+#' @inheritParams discretize
 #' @return A `tsn` object whose `series` column is a factor with
 #'   the following classes: `"Ascending"`, `"Descending"`, `"Flat"`,
 #'   `"Turbulent"`, `"Missing Data"`, or `"Initial"`.
@@ -64,41 +65,19 @@ trend <- function(x, ...) {
 
 #' @export
 #' @rdname trend
-trend.ts <- function(x, ...) {
-  df <- data.frame(value = as.numeric(x), id = 1L, time = stats::time(x))
-  trend(
-    x = tsn(df, "value", "id", "time"),
-    ...
-  )
-}
-
-#' @rdname trend
-#' @export
 trend.default <- function(x, ...) {
-  df <- data.frame(value = as.numeric(x), id = 1L, time = seq_along(x))
-  trend(
-    x = tsn(df, "value", "id", "time"),
-    ...
-  )
+  trend(x = as.tsn(x), ...)
 }
 
-#' @rdname trend
 #' @export
+#' @rdname trend
 trend.data.frame <- function(x, value_col, id_col, time_col, ...) {
   check_missing(x)
-  check_missing(value_col)
-  check_class(x, "data.frame")
-  check_string(value_col)
-  check_string(id_col)
-  check_string(time_col)
-  trend(
-    tsn(x, value_col, id_col, time_col),
-    ...
-  )
+  trend(tsn(x, value_col, id_col, time_col), ...)
 }
 
-#' @rdname trend
 #' @export
+#' @rdname trend
 trend.tsn <- function(x, window, method = "slope", slope = "robust",
                       epsilon = 0.05, turbulence_threshold = 5,
                       flat_to_turbulent_factor = 1.5, align = "center") {
