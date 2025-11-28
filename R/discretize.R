@@ -20,10 +20,18 @@
 #'
 #'   * `"kmeans"`: for K-means clustering (the default).
 #'   * `"width"`: for equal width binning.
+#'   * `"magnitude"`: for magnitude-based binning.
 #'   * `"quantile"`: for quantile-based binning.
 #'   * `"kde"`: for binning based on kernel density estimation.
 #'   * `"gaussian"`: for a Gaussian mixture model.
-#'   * `"clust"`: for hierarchical clustering.
+#'   * `"hclust"`: for hierarchical clustering.
+#'
+#' @param transform \[`character(1)`]\cr The name of a transformation method to
+#'   apply before the discretization. The available options are:
+#'
+#'   * `"none"`: uses the original data values.
+#'   * `"log"`: uses the log plus one transformed absolute values.
+#'   * `"zscore"`: uses the standardized values.
 #'
 #' @param labels \[`character()`]\cr A vector of names for the states. The
 #'   length must be `n_states` The defaults is consecutive numbering,
@@ -72,6 +80,7 @@ discretize.default <- function(x, ...) {
 #' @rdname discretize
 discretize.data.frame <- function(x, value_col, id_col, time_col, n_states,
                                   labels = 1:n_states, method = "kmeans",
+                                  transform = "none",
                                   unused_fn = dplyr::first, ...) {
   check_missing(x)
   discretize(
@@ -79,6 +88,7 @@ discretize.data.frame <- function(x, value_col, id_col, time_col, n_states,
     n_states = n_states,
     labels = labels,
     method = method,
+    transform = transform,
     unused_fn = unused_fn,
     ...
   )
@@ -87,7 +97,7 @@ discretize.data.frame <- function(x, value_col, id_col, time_col, n_states,
 #' @export
 #' @rdname discretize
 discretize.tsn <- function(x, n_states, labels = 1:n_states, method = "kmeans",
-                        unused_fn = dplyr::first, ...) {
+                           transform = "none", unused_fn = dplyr::first, ...) {
   labels <- try_(as.character(labels))
   stopifnot_(
     checkmate::test_character(
@@ -109,11 +119,20 @@ discretize.tsn <- function(x, n_states, labels = 1:n_states, method = "kmeans",
     (same as {.arg n_states})."
   )
   method <- check_match(method, names(discretization_funs))
+  transform <- check_match(transform, c("none", "log", "zscore"))
   complete <- stats::complete.cases(x[, c("id", "value")])
   values <- x$value[complete]
-  # TODO warn if number of states is less than n_states
+  values <- switch(
+    transform,
+    `none` = values,
+    `log` = log1p(abs(values)),
+    `zscore` = (values - mean(values)) / sd(values)
+  )
   discretized <- discretization_funs[[method]](values, n_states, ...)
   states <- discretized$states
+  if (length(unique(states)) < n_states) {
+    warning_("The number of unique states is smaller than {.arg n_states}.")
+  }
   output <- discretized$output
   x$state <- NA
   x$state[complete] <- states
@@ -205,7 +224,7 @@ discretization_funs$kmeans <- function(x, n_states, ...) {
   )
 }
 
-discretization_funs$clust <- function(x, n_states, ...) {
+discretization_funs$hclust <- function(x, n_states, ...) {
   dist_mat <- stats::dist(x)
   hclust <- stats::hclust(dist_mat, method = "complete")
   clusters <- stats::cutree(hclust, k = n_states)
