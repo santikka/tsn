@@ -18,11 +18,12 @@
 #' @param method \[`character(1)`]\cr The name of the discretization method to
 #'   use.
 #'
-#'   * `kmeans`: for K-means clustering (the default).
-#'   * `width`: for equal width binning.
-#'   * `quantile`: for quantile-based binning.
-#'   * `kde`: for binning based on kernel density estimation.
-#'   * `gaussian`: for a Gaussian mixture model.
+#'   * `"kmeans"`: for K-means clustering (the default).
+#'   * `"width"`: for equal width binning.
+#'   * `"quantile"`: for quantile-based binning.
+#'   * `"kde"`: for binning based on kernel density estimation.
+#'   * `"gaussian"`: for a Gaussian mixture model.
+#'   * `"clust"`: for hierarchical clustering.
 #'
 #' @param labels \[`character()`]\cr A vector of names for the states. The
 #'   length must be `n_states` The defaults is consecutive numbering,
@@ -201,5 +202,17 @@ discretization_funs$kmeans <- function(x, n_states, ...) {
   list(
     states = ord[km$cluster],
     output = km
+  )
+}
+
+discretization_funs$clust <- function(x, n_states, ...) {
+  dist_mat <- stats::dist(x)
+  hclust <- stats::hclust(dist_mat, method = "complete")
+  clusters <- stats::cutree(hclust, k = n_states)
+  centers <- tapply(x, clusters, mean)
+  ord <- order(centers)
+  list(
+    states = ord[clusters],
+    output = hclust
   )
 }
