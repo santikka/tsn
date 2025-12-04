@@ -18,11 +18,11 @@
 #' @param method \[`character(1)`]\cr The name of the discretization method to
 #'   use.
 #'
-#'   * `"kmeans"`: for K-means clustering (the default).
+#'   * `"threshold"`: for binning with manually specified thresholds.
 #'   * `"width"`: for equal width binning.
-#'   * `"magnitude"`: for magnitude-based binning.
 #'   * `"quantile"`: for quantile-based binning.
 #'   * `"kde"`: for binning based on kernel density estimation.
+#'   * `"kmeans"`: for K-means clustering (the default).
 #'   * `"gaussian"`: for a Gaussian mixture model.
 #'   * `"hclust"`: for hierarchical clustering.
 #'
@@ -42,7 +42,9 @@
 #' @param ... Additional arguments passed to the discretization method
 #'   ([stats::kmeans()] for `kmeans`, [stats::density()] and
 #'   [pracma::findpeaks()] for `kde`, and
-#'   [mclust::Mclust()] for `gaussian`).
+#'   [mclust::Mclust()] for `gaussian`). For the `"threshold"` method,
+#'   the argument `threshold` is used to specify the manual thresholds for
+#'   binning.
 #' @return A `tsn` object which is a `data.frame` containing the original
 #'   time series data and the discretized sequence of states.
 #' @importFrom mclust Mclust
@@ -149,6 +151,25 @@ discretize.tsn <- function(x, n_states, labels = 1:n_states, method = "kmeans",
 
 discretization_funs <- list()
 
+discretization_funs$threshold <- function(x, n_states, ...) {
+  threshold <- list(...)$threshold
+  stopifnot_(
+    length(threshold) == (n_states - 1L),
+    "Argument {.arg threshold} must be of length {n_states - 1}."
+  )
+  r <- range(x)
+  stopifnot_(
+    all(threshold > r[1L] & threshold < r[2L]),
+    "Argument {.arg threshold must provide values within the range of
+     the time series data values."
+  )
+  breaks <- c(r[1L] - 1, sort(threshold), r[2L] + 1)
+  list(
+    states = cut(x, breaks = breaks, labels = FALSE, include.lowest = TRUE),
+    output = breaks
+  )
+}
+
 discretization_funs$width <- function(x, n_states, ...) {
   r <- range(x)
   k <- n_states + 1L
@@ -196,6 +217,15 @@ discretization_funs$kde <- function(x, n_states, ...) {
   )
 }
 
+discretization_funs$kmeans <- function(x, n_states, ...) {
+  km <- stats::kmeans(x, centers = n_states, ...)
+  ord <- order(km$centers)
+  list(
+    states = ord[km$cluster],
+    output = km
+  )
+}
+
 discretization_funs$gaussian <- function(x, n_states, ...) {
   stopifnot_(
     requireNamespace("mclust", quietly = TRUE),
@@ -212,15 +242,6 @@ discretization_funs$gaussian <- function(x, n_states, ...) {
   list(
     states = ord[model$classification],
     output = model
-  )
-}
-
-discretization_funs$kmeans <- function(x, n_states, ...) {
-  km <- stats::kmeans(x, centers = n_states, ...)
-  ord <- order(km$centers)
-  list(
-    states = ord[km$cluster],
-    output = km
   )
 }
 
